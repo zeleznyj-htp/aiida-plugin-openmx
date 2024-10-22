@@ -10,7 +10,7 @@ from aiida.plugins import DataFactory
 
 from aiida_openmx.input.dict_to_file import write_mixed_output
 
-DiffParameters = DataFactory("openmx")
+#DiffParameters = DataFactory("openmx")
 
 
 class OpenMXInputFile(CalcJob):
@@ -69,8 +69,6 @@ class OpenMXInputFile(CalcJob):
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
         write_mixed_output(input_filename, folder,"parameters", "structure_filename", "data_sequence", "csv_file")
-        with folder.open("input_file", 'w') as handle:
-            handle.write("file content")
         calcinfo.retrieve_list = [self.metadata.options.output_filename]
 
         return calcinfo

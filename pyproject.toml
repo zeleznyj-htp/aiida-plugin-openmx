@@ -40,8 +40,8 @@ docs = [
 [project.urls]
 Source = "https://github.com/parizekv/aiida-openmx"
 
-[project.entry-points."aiida.data"]
-"openmx" = "aiida_openmx.data:DiffParameters"
+#[project.entry-points."aiida.data"]
+#"openmx" = "aiida_openmx.data:DiffParameters"
 
 [project.entry-points."aiida.calculations"]
 "openmx" = "aiida_openmx.calculations:OpenMXInputFile"
