@@ -1,11 +1,19 @@
 import pandas as pd
-from structure import cif_to_dict
+from aiida_openmx.input.structure import struct_to_dict
+from pymatgen.core import Structure
 
-def pseudopotentials_filenames(structure_file):
-    pseudopotentials_names = [atom + '_PBE19' for atom in get_elements(structure_file)]
+def get_elements(structure):
+    structure_dict = struct_to_dict(structure)
+    elements = set()
+    for i in range(len(structure_dict['sites'])):
+        elements.add(structure_dict['sites'][i]['species'][0]['element'])
+    return list(elements)
+
+def pseudopotentials_filenames(structure):
+    pseudopotentials_names = [atom + '_PBE19' for atom in get_elements(structure)]
     return pseudopotentials_names
 
-def pseudo_basis_names(structure_file, csv_file, q):
+def pseudo_basis_names(structure, csv_file, q):
     # Load the CSV file into a pandas DataFrame
     df = pd.read_csv(csv_file)
 
@@ -19,7 +27,7 @@ def pseudo_basis_names(structure_file, csv_file, q):
     selected_column = column_map[q]
 
     # Filter rows based on names_list and get the corresponding filenames
-    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames(structure_file))]
+    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames(structure))]
 
     # Return the list of filenames from the selected column
     return filtered_df[selected_column].tolist()
@@ -28,23 +36,10 @@ def pseudo_basis_names(structure_file, csv_file, q):
 #filenames = get_filenames_from_csv(csv_file, input(atoms_example), q)
 #print(filenames)
 
-def get_elements(structure_file):
-    structure = cif_to_dict(structure_file)
-    elements = set()
-    for i in range(len(structure['sites'])):
-        elements.add(structure['sites'][i]['species'][0]['element'])
-    return list(elements)
-
-def atomic_species(structure_file, csv_file, q):
+def atomic_species(structure, csv_file, q):
     string = "<Definition.of.Atomic.Species\n"
-    for i in range(len(get_elements(structure_file))):
-        string += (str(get_elements(structure_file)[i])+"\t"+str(pseudo_basis_names(structure_file, csv_file, q)[i])+"\t"+str(pseudopotentials_filenames(structure_file)[i])+"\n")
+    for i in range(len(get_elements(structure))):
+        string += (str(get_elements(structure)[i]) + "\t" + str(pseudo_basis_names(structure, csv_file, q)[i]) + "\t" + str(pseudopotentials_filenames(structure)[i]) + "\n")
     string += "Definition.of.Atomic.Species>"
     return string
-
-# Example usage:
-csv_file = 'pseudopotentials.csv'  # Replace with your actual CSV file path
-q = 2  # Example q value
-
-#print(atomic_species("Crys-MnO.cif", csv_file, q))
 

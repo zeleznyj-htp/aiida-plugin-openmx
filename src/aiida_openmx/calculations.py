@@ -3,11 +3,12 @@ Calculations provided by aiida_openmx.
 
 Register calculations via the "aiida.calculations" entry point in setup.json.
 """
-
 from aiida.common import datastructures
 from aiida.engine import CalcJob
-from aiida.orm import SinglefileData
+from aiida.orm import SinglefileData, Dict
 from aiida.plugins import DataFactory
+
+from aiida_openmx.input.dict_to_file import write_mixed_output
 
 DiffParameters = DataFactory("openmx")
 
@@ -32,8 +33,12 @@ class OpenMXInputFile(CalcJob):
         spec.inputs["metadata"]["options"]["parser_name"].default = "openmx"
 
         # new ports
-        spec.input("metadata.options.output_filename", valid_type=str, default="patch.diff")
+        spec.input("metadata.options.output_filename", valid_type=str, default="met.out")
         spec.input("input_file", valid_type=SinglefileData, help="Input file")
+        spec.input("structure_filename", valid_type=SinglefileData, help="Structure file")
+        spec.input("csv_file", valid_type=SinglefileData, help="File with PAO basis functions")
+        spec.input("parameters", valid_type=Dict, help="Parameters of the calculation")
+        spec.input("data_sequence", valid_type=Dict, help="Sequence of the parameters written to the input file.")
         spec.output(
             "output_file",
             valid_type=SinglefileData,
@@ -54,17 +59,18 @@ class OpenMXInputFile(CalcJob):
             needed by the calculation.
         :return: `aiida.common.datastructures.CalcInfo` instance
         """
+        input_filename = "input_file"
         codeinfo = datastructures.CodeInfo()
-        codeinfo.cmdline_params = [self.inputs.input_file.filename]
+        codeinfo.cmdline_params = [input_filename, self.metadata.options.output_filename]
         codeinfo.code_uuid = self.inputs.code.uuid
         codeinfo.stdout_name = self.metadata.options.output_filename
 
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
-        calcinfo.local_copy_list = [
-            (self.inputs.input_file.uuid, self.inputs.input_file.filename, self.inputs.input_file.filename),
-        ]
+        write_mixed_output(input_filename, folder,"parameters", "structure_filename", "data_sequence", "csv_file")
+        with folder.open("input_file", 'w') as handle:
+            handle.write("file content")
         calcinfo.retrieve_list = [self.metadata.options.output_filename]
 
         return calcinfo

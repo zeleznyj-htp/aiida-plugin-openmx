@@ -1,40 +1,40 @@
-import re
-from structure import atom_spec_coord, atom_unit_vectors
-from definition_of_atomic_species import atomic_species
-filename = "Crys-MnO.cif"
-csv_file = 'pseudopotentials.csv'  # Replace with your actual CSV file path
-q = 2  # Example q value
+from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors, cif_to_struct
+from aiida_openmx.input.definition_of_atomic_species import atomic_species
+from pymatgen.core import Structure
+#structure_filename = 'Methane.cif'
+#output_file = 'output.txt'
+#csv_file = 'pseudopotentials.csv'  # Replace with your actual CSV file path
 
-def write_mixed_output(output_file, data, structure, data_sequence):
+def write_mixed_output(input_file, folder, data, structure_filename, data_sequence, csv_file):
     """
     Write key-value pairs and structure elements based on the specified sequence.
 
-    :param output_file: Path to the output text file
+    :param output: Path to the output text file
     :param data: Dictionary with keys and their values
-    :param structure: List containing text to insert
+    :param structure_filename: List containing text to insert
     :param data_sequence: List specifying the order of dictionary keys and structure elements
     """
-    with open(output_file, 'w') as file:
+    structure = cif_to_struct(structure_filename)
+    structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, csv_file, data['q']),
+                        'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure),
+                        'Atoms.UnitVectors': atom_unit_vectors(structure)}
+    with folder.open(input_file, 'w') as handle:
         for item in data_sequence:
             if item in data:
                 # Write the key-value pair from the dictionary
                 value = data[item]
-                file.write(f"{item:<35} {value:<35}\n")
-            elif isinstance(item, str) and item in structure:
+                handle.write(f"{item:<35} {value:<35}\n")
+            elif isinstance(item, str) and item in structure_string:
                 # Write the corresponding structure item
-                file.write(f"{structure[item]}\n")
+                handle.write(f"{structure_string[item]}\n")
             else:
-                # Write any other string directly
-                file.write(f"{item}\n")
-
-
-# Example usage:
-output_file = 'output.txt'
+                # Don't write anything
+                pass
 
 #struct = structure("filename.cif")
-structure = {'Definition.of.Atomic.Species':atomic_species(filename, csv_file, q),'Atoms.SpeciesAndCoordinates':atom_spec_coord(filename),
-             'Atoms.UnitVectors':atom_unit_vectors(filename)}
+
 # Example dictionary input with keys and values
+'''
 data = {
     'System.CurrrentDirectory': './',
     'System.Name': 'met',
@@ -64,6 +64,7 @@ data = {
     'MD.TimeStep': 1.0,
     'MD.Opt.criterion': 1.0e-4,
     'DATA.PATH': '/storage/praha1/home/parizev/openmx3.9/DFT_DATA19 #default=/storage/praha1/home/parizev/openmx3.9/DFT_DATA19',
+    'q': 2,
 }
 
 data_sequence = [
@@ -99,5 +100,6 @@ data_sequence = [
     'MD.Opt.criterion',
     'DATA.PATH',
 ]
+'''
 
-write_mixed_output(output_file, data, structure, data_sequence)
+#write_mixed_output(output_file, data, structure_filename, data_sequence, csv_file)

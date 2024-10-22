@@ -29,7 +29,7 @@ class OpenMXParser(Parser):
         """
         super().__init__(node)
         if not issubclass(node.process_class, OpenMXInputFile):
-            raise exceptions.ParsingError("Can only parse DiffCalculation")
+            raise exceptions.ParsingError("Can only parse OpenMXCalculation")
 
     def parse(self, **kwargs):
         """
