@@ -5,7 +5,7 @@ Register calculations via the "aiida.calculations" entry point in setup.json.
 """
 from aiida.common import datastructures
 from aiida.engine import CalcJob
-from aiida.orm import SinglefileData, Dict
+from aiida.orm import SinglefileData, Dict, List
 from aiida.plugins import DataFactory
 
 from aiida_openmx.input.dict_to_file import write_mixed_output
@@ -34,7 +34,7 @@ class OpenMXInputFile(CalcJob):
 
         # new ports
         spec.input("metadata.options.output_filename", valid_type=str, default="met.out")
-        spec.input("input_file", valid_type=SinglefileData, help="Input file")
+        #spec.input("input_file", valid_type=SinglefileData, help="Input file")
         spec.input("structure_filename", valid_type=SinglefileData, help="Structure file")
         spec.input("csv_file", valid_type=SinglefileData, help="File with PAO basis functions")
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation")

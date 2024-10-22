@@ -22,7 +22,6 @@ def flatten_dict(d, parent_key='', sep='.'):
             items.append((new_key, v))
     return dict(items)
 
-
 def unflatten_dict(d, sep='.'):
     """
     Convert a flat dictionary with dot-separated keys into a nested dictionary.
@@ -46,12 +45,6 @@ def unflatten_dict(d, sep='.'):
     return result
 
 '''
-# Example usage:
-flattened_dict = {
-    "a.b": "./",
-    "c.d": "test"
-}
-
 parameters_tmp = {"System.CurrrentDirectory": "./",
     'System.Name': 'met',
     'level.of.stdout': 1,
@@ -83,49 +76,10 @@ parameters_tmp = {"System.CurrrentDirectory": "./",
     'q': 2
 }
 
-data_sequence_tmp ={'System.CurrrentDirectory',
-    'System.Name',
-    'level.of.stdout',
-    'level.of.fileout',
-    'Species.Number',
-    'Definition.of.Atomic.Species',
-    'Atoms.Number',
-    'Atoms.SpeciesAndCoordinates.Unit',
-    'Atoms.SpeciesAndCoordinates',
-    'Atoms.UnitVectors.Unit',
-    'Atoms.UnitVectors',
-    'scf.XcType',
-    'scf.SpinPolarization',
-    'scf.ElectronicTemperature',
-    'scf.energycutoff',
-    'scf.maxIter',
-    'scf.EigenvalueSolver',
-    'scf.Kgrid',
-    'scf.Mixing.Type',
-    'scf.Init.Mixing.Weight',
-    'scf.Min.Mixing.Weight',
-    'scf.Max.Mixing.Weight',
-    'scf.Mixing.History',
-    'scf.Mixing.StartPulay',
-    'scf.criterion',
-    'scf.lapack.dste',
-    'MD.Type',
-    'MD.maxIter',
-    'MD.TimeStep',
-    'MD.Opt.criterion',
-    'DATA.PATH'}
-
-
 
 # Example usage:
-
-nested_dict = {
-    "a": {"b": "./"},
-    "c": {"d": "test"}
-}
-
-#nested_dict = unflatten_dict(parameters_tmp)
-flattened_dict = flatten_dict(nested_dict)
-#print("nested dict = "+str(nested_dict))
-print("flattened dict = "+str(flattened_dict))
+input_parameters = {"a.b.c": "./.l", "c.d":"test"}
+flattened = flatten_dict(unflatten_dict(parameters_tmp))
+print("flattened dict = "+str(flattened))
+print(parameters_tmp == flattened)
 '''
