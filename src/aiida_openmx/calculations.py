@@ -38,7 +38,7 @@ class OpenMXInputFile(CalcJob):
         spec.input("structure_filename", valid_type=SinglefileData, help="Structure file")
         spec.input("csv_file", valid_type=SinglefileData, help="File with PAO basis functions")
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation")
-        spec.input("data_sequence", valid_type=Dict, help="Sequence of the parameters written to the input file.")
+        spec.input("data_sequence", valid_type=List, help="Sequence of the parameters written to the input file.")
         spec.output(
             "output_file",
             valid_type=SinglefileData,

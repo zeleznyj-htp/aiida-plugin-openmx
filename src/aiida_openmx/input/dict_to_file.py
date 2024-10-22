@@ -8,7 +8,7 @@ from aiida_openmx.input.flat import flatten_dict
 #output_file = 'output.txt'
 #csv_file = 'pseudopotentials.csv'  # Replace with your actual CSV file path
 
-def write_mixed_output(input_file, folder, data_nest, structure_filename, data_sequence_nest, csv_file):
+def write_mixed_output(input_file, folder, data_nest, structure_filename, data_sequence, csv_file):
     """
     Write key-value pairs and structure elements based on the specified sequence.
 
@@ -18,7 +18,6 @@ def write_mixed_output(input_file, folder, data_nest, structure_filename, data_s
     :param data_sequence: List specifying the order of dictionary keys and structure elements
     """
     data = flatten_dict(data_nest)
-    data_sequence = flatten_dict(data_sequence_nest)
     structure = cif_to_struct(structure_filename)
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, csv_file, data['q']),
                         'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure),
