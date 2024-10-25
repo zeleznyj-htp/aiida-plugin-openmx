@@ -1,3 +1,21 @@
+def replace_dict(input_dict, to_be_replaced_string, new_string):
+    return {key.replace(to_be_replaced_string, new_string): value for key, value in input_dict.items()}
+
+def replace_dots(a):
+    return replace_dict(a,'.','\\\\')
+
+def replace_backslash(a):
+    return replace_dict(a, '\\\\', '.')
+
+
+'''
+# Example usage:
+a = {'a.b': 5, 'c.d': 6}
+a_transformed = replace_backslash(replace_dots(a))
+a_transformed = replace_dots_in_keys(a, '.','\\\\')
+print(a_transformed == a)
+
+
 def flatten_dict(d, parent_key='', sep='.'):
     """
     Recursively flatten a nested dictionary.
@@ -45,7 +63,7 @@ def unflatten_dict(d, sep='.'):
         d_nested[keys[-1]] = value  # Set the final value
     return result
 
-'''
+
 parameters_tmp = {"System.CurrrentDirectory": "./",
     'System.Name': 'met',
     'level.of.stdout': 1,
