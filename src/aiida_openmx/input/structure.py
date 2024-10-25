@@ -1,6 +1,6 @@
 from pymatgen.io.cif import CifParser
 from pymatgen.core import Structure
-from src.aiida_openmx.input.definition_of_atomic_species import valence_electrons
+from aiida_openmx.input.definition_of_atomic_species import valence_electrons
 
 
 def cif_to_struct(filename):
@@ -16,17 +16,17 @@ def struct_to_dict(structure):
 #print(cif_to_dict("Crys-MnO.cif")['charge'])
 
 
-def atom_spec_coord(structure):
+def atom_spec_coord(structure, csv_file):
     elements_on_site = []
     s_vectors = []
     for i in range(len(struct_to_dict(structure)['sites'])):
         elements_on_site.append(str(struct_to_dict(structure)['sites'][i]['species'][0]['element']))
         a_vectors = [str(a) for a in struct_to_dict(structure)['sites'][i]['abc']]
         s_vectors.append(" ".join(a_vectors))
-    valence = valence_electrons(elements_on_site)
+    valence = valence_electrons(elements_on_site, csv_file)
     string = "<Atoms.SpeciesAndCoordinates\n"
     for i in range(len(elements_on_site)):
-        string += (str(i+1) +"\t" + elements_on_site[i] + "\t" + s_vectors[i] +"\t"+ valence[i] +"\n")
+        string += (str(i+1) +"\t" + elements_on_site[i] + "\t" + s_vectors[i] +"\t"+ str(valence[i]) +"\n")
     string += "Atoms.SpeciesAndCoordinates>"
     return string
 

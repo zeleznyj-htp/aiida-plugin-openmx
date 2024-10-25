@@ -1,6 +1,9 @@
 import pandas as pd
-from aiida_openmx.input.structure import struct_to_dict
+#from aiida_openmx.input.structure import struct_to_dict
 from pymatgen.core import Structure
+
+def struct_to_dict(structure):
+    return structure.as_dict()
 
 def get_elements(structure):
     structure_dict = struct_to_dict(structure)
@@ -35,7 +38,7 @@ def pseudo_basis_names(structure, csv_file, q):
 
 #filenames = get_filenames_from_csv(csv_file, input(atoms_example), q)
 #print(filenames)
-def valence_electrons(elements_on_site):
+def valence_electrons(elements_on_site, csv_file):
     # Load the CSV file into a pandas DataFrame
     df = pd.read_csv(csv_file)
     elements_name = [atom + '_PBE19' for atom in elements_on_site]
