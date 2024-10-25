@@ -68,7 +68,7 @@ class OpenMXInputFile(CalcJob):
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
-        write_mixed_output(input_filename, folder,"parameters", "structure_filename", "data_sequence", "csv_file")
+        write_mixed_output(input_filename, folder, "parameters", "structure_filename", "data_sequence", "csv_file")
         calcinfo.retrieve_list = [self.metadata.options.output_filename]
 
         return calcinfo

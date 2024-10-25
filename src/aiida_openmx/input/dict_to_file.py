@@ -1,7 +1,7 @@
 from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors, cif_to_struct
 from aiida_openmx.input.definition_of_atomic_species import atomic_species
-from pymatgen.core import Structure
 from aiida_openmx.input.flat import flatten_dict
+from pymatgen.core import Structure
 
 
 #structure_filename = 'Methane.cif'

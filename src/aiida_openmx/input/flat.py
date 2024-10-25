@@ -10,6 +10,7 @@ def flatten_dict(d, parent_key='', sep='.'):
     Returns:
         dict: A flattened dictionary where nested keys are combined using the separator.
     """
+    print(d)
     items = []
     for k, v in d.items():
         # Construct new key by joining parent key and current key
