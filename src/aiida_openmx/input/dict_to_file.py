@@ -24,17 +24,13 @@ def write_mixed_output(input_file, folder, data_backslash, structure_filename, d
                         'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, csv_file),
                         'Atoms.UnitVectors': atom_unit_vectors(structure)}
     with folder.open(input_file, 'w') as handle:
-        for item in data_sequence:
-            if item in data:
+        for item in structure_string:
+            # Write the corresponding structure item
+            handle.write(f"{structure_string[item]}\n")
+        for item in data:
                 # Write the key-value pair from the dictionary
                 value = data[item]
                 handle.write(f"{item:<35} {value:<35}\n")
-            elif isinstance(item, str) and item in structure_string:
-                # Write the corresponding structure item
-                handle.write(f"{structure_string[item]}\n")
-            else:
-                # Don't write anything
-                pass
 
 #struct = structure("filename.cif")
 
