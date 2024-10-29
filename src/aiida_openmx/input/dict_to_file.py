@@ -1,4 +1,4 @@
-from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors, cif_to_struct
+from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors, file_to_struct
 from aiida_openmx.input.definition_of_atomic_species import atomic_species
 from aiida_openmx.input.flat import replace_backslash
 from aiida.orm import Dict
@@ -20,7 +20,7 @@ def write_mixed_output(input_file, folder, data_backslash, structure_filename):
     """
     csv_file = "pseudopotentials.csv"
     data = replace_backslash(data_backslash)
-    structure = cif_to_struct(structure_filename)
+    structure = file_to_struct(structure_filename)
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, csv_file, data['q']),
                         'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, csv_file),
                         'Atoms.UnitVectors': atom_unit_vectors(structure)}
