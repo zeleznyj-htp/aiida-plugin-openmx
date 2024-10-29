@@ -9,7 +9,7 @@ from pymatgen.core import Structure
 #output_file = 'output.txt'
 #csv_file = 'pseudopotentials.csv'  # Replace with your actual CSV file path
 
-def write_mixed_output(input_file, folder, data_backslash, structure_filename, data_sequence, csv_file):
+def write_mixed_output(input_file, folder, data_backslash, structure_filename):
     """
     Write key-value pairs and structure elements based on the specified sequence.
 
@@ -18,6 +18,7 @@ def write_mixed_output(input_file, folder, data_backslash, structure_filename, d
     :param structure_filename: List containing text to insert
     :param data_sequence: List specifying the order of dictionary keys and structure elements
     """
+    csv_file = "pseudopotentials.csv"
     data = replace_backslash(data_backslash)
     structure = cif_to_struct(structure_filename)
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, csv_file, data['q']),
@@ -31,8 +32,6 @@ def write_mixed_output(input_file, folder, data_backslash, structure_filename, d
                 # Write the key-value pair from the dictionary
                 value = data[item]
                 handle.write(f"{item:<35} {value:<35}\n")
-
-#struct = structure("filename.cif")
 
 # Example dictionary input with keys and values
 '''
@@ -67,40 +66,6 @@ data = {
     'DATA.PATH': '/storage/praha1/home/parizev/openmx3.9/DFT_DATA19 #default=/storage/praha1/home/parizev/openmx3.9/DFT_DATA19',
     'q': 2,
 }
-
-data_sequence = [
-    'System.CurrrentDirectory',
-    'System.Name',
-    'level.of.stdout',
-    'level.of.fileout',
-    'Species.Number',
-    'Definition.of.Atomic.Species',
-    'Atoms.Number',
-    'Atoms.SpeciesAndCoordinates.Unit',
-    'Atoms.SpeciesAndCoordinates',
-    'Atoms.UnitVectors.Unit',
-    'Atoms.UnitVectors',
-    'scf.XcType',
-    'scf.SpinPolarization',
-    'scf.ElectronicTemperature',
-    'scf.energycutoff',
-    'scf.maxIter',
-    'scf.EigenvalueSolver',
-    'scf.Kgrid',
-    'scf.Mixing.Type',
-    'scf.Init.Mixing.Weight',
-    'scf.Min.Mixing.Weight',
-    'scf.Max.Mixing.Weight',
-    'scf.Mixing.History',
-    'scf.Mixing.StartPulay',
-    'scf.criterion',
-    'scf.lapack.dste',
-    'MD.Type',
-    'MD.maxIter',
-    'MD.TimeStep',
-    'MD.Opt.criterion',
-    'DATA.PATH',
-]
 '''
 
-#write_mixed_output(output_file, data, structure_filename, data_sequence, csv_file)
+#write_mixed_output(output_file, data, structure_filename)

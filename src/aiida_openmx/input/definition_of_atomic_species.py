@@ -1,5 +1,6 @@
 import pandas as pd
-#from aiida_openmx.input.structure import struct_to_dict
+import importlib.resources as pkg_resources
+from aiida_openmx import data
 from pymatgen.core import Structure
 
 def struct_to_dict(structure):
@@ -18,7 +19,8 @@ def pseudopotentials_filenames(structure):
 
 def pseudo_basis_names(structure, csv_file, q):
     # Load the CSV file into a pandas DataFrame
-    df = pd.read_csv(csv_file)
+    with pkg_resources.files(data).joinpath(csv_file).open('r') as f:
+        df = pd.read_csv(f)
 
     # Determine which column to use based on the value of q
     column_map = {1: df.columns[2], 2: df.columns[3], 3: df.columns[4]}
@@ -40,7 +42,8 @@ def pseudo_basis_names(structure, csv_file, q):
 #print(filenames)
 def valence_electrons(elements_on_site, csv_file):
     # Load the CSV file into a pandas DataFrame
-    df = pd.read_csv(csv_file)
+    with pkg_resources.files(data).joinpath(csv_file).open('r') as f:
+        df = pd.read_csv(f)
     elements_name = [atom + '_PBE19' for atom in elements_on_site]
 
     # Return the list of valences from the selected column
