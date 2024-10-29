@@ -42,13 +42,13 @@ def valence_electrons(elements_on_site, csv_file):
     # Load the CSV file into a pandas DataFrame
     df = pd.read_csv(csv_file)
     elements_name = [atom + '_PBE19' for atom in elements_on_site]
-    valence_col = df.columns[1]
-
-    # Filter rows based on names_list and get the corresponding valence
-    filtered_df = df[df[df.columns[0]].isin(elements_name)]
 
     # Return the list of valences from the selected column
-    return filtered_df[valence_col].tolist()
+    element_to_value = dict(zip(df[df.columns[0]], df[df.columns[1]]))
+
+    # Build the output list by looking up each element in the dictionary
+    valence = [element_to_value.get(element, None) for element in elements_name]
+    return valence
 
 def atomic_species(structure, csv_file, q):
     string = "<Definition.of.Atomic.Species\n"
@@ -56,4 +56,3 @@ def atomic_species(structure, csv_file, q):
         string += (str(get_elements(structure)[i]) + "\t" + str(pseudo_basis_names(structure, csv_file, q)[i]) + "\t" + str(pseudopotentials_filenames(structure)[i]) + "\n")
     string += "Definition.of.Atomic.Species>"
     return string
-

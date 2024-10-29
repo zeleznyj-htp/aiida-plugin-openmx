@@ -35,7 +35,7 @@ class OpenMXInputFile(CalcJob):
         # new ports
         spec.input("metadata.options.output_filename", valid_type=str, default="met.out")
         #spec.input("input_file", valid_type=SinglefileData, help="Input file")
-        spec.input("structure_filename", valid_type=SinglefileData, help="Structure file")
+        spec.input("structure_file", valid_type=SinglefileData, help="Structure file")
         spec.input("csv_file", valid_type=SinglefileData, help="File with PAO basis functions")
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation")
         spec.input("data_sequence", valid_type=List, help="Sequence of the parameters written to the input file.")
@@ -68,7 +68,26 @@ class OpenMXInputFile(CalcJob):
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
-        write_mixed_output(input_filename, folder, self.inputs.parameters.get_dict(), self.inputs.structure_filename.filename, self.inputs.data_sequence.get_list(), self.inputs.csv_file.filename)
+
+        structure_file = self.inputs.structure_file
+        csv_file = self.inputs.csv_file
+        structure_filename = structure_file.filename
+        csv_filename = csv_file.filename
+
+        # Store the file in the calculation folder
+        with structure_file.open(mode='rb') as fhandle1:
+            folder.create_file_from_filelike(fhandle1, structure_filename)
+
+        # Construct the full path to the file in the calculation folder
+        structure_file_path = folder.get_abs_path(structure_filename)
+
+        with csv_file.open(mode='rb') as fhandle2:
+            folder.create_file_from_filelike(fhandle2, csv_filename)
+
+        # Construct the full path to the file in the calculation folder
+        csv_file_path = folder.get_abs_path(csv_filename)
+
+        write_mixed_output(input_filename, folder, self.inputs.parameters.get_dict(), structure_file_path, self.inputs.data_sequence.get_list(), csv_file_path)
         calcinfo.retrieve_list = [self.metadata.options.output_filename]
 
         return calcinfo
