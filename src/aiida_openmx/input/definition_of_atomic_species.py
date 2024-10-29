@@ -13,8 +13,19 @@ def get_elements(structure):
         elements.add(structure_dict['sites'][i]['species'][0]['element'])
     return list(elements)
 
+def get_elements_ordered(structure):
+    structure_dict = struct_to_dict(structure)
+    elements = []
+    for i in range(len(structure_dict['sites'])):
+        elements.append(structure_dict['sites'][i]['species'][0]['element'])
+    return elements
+
 def pseudopotentials_filenames(structure):
     pseudopotentials_names = [atom + '_PBE19' for atom in get_elements(structure)]
+    return pseudopotentials_names
+
+def pseudopotentials_filenames_ordered(structure):
+    pseudopotentials_names = [atom + '_PBE19' for atom in get_elements_ordered(structure)]
     return pseudopotentials_names
 
 def pseudo_basis_names(structure, csv_file, q):
@@ -32,7 +43,7 @@ def pseudo_basis_names(structure, csv_file, q):
     selected_column = column_map[q]
 
     # Filter rows based on names_list and get the corresponding filenames
-    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames(structure))]
+    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames_ordered(structure))]
 
     # Return the list of filenames from the selected column
     return filtered_df[selected_column].tolist()
