@@ -1,7 +1,30 @@
 from pymatgen.io.cif import CifParser
 from pymatgen.core import Structure
+import os
 from aiida_openmx.input.definition_of_atomic_species import valence_electrons
 
+
+def file_to_struct(filename):
+    """
+    Load a structure from a .cif or .json file.
+
+    Parameters:
+    - file_path (str): Path to the structure file (.cif or .json)
+
+    Returns:
+    - Structure: A pymatgen Structure object
+    """
+    # Get the file extension
+    file_ext = os.path.splitext(filename)[1].lower()
+
+    if file_ext == ".cif":
+        structure = cif_to_struct(filename)
+    elif file_ext == ".json":
+        structure = Structure.from_file(filename)
+    else:
+        raise ValueError("Unsupported file format. Please use a .cif or .json file.")
+
+    return structure
 
 def cif_to_struct(filename):
     parser = CifParser(filename)
