@@ -13,22 +13,11 @@ def get_elements(structure):
         elements.add(structure_dict['sites'][i]['species'][0]['element'])
     return list(elements)
 
-def get_elements_ordered(structure):
-    structure_dict = struct_to_dict(structure)
-    elements = []
-    for i in range(len(structure_dict['sites'])):
-        elements.append(structure_dict['sites'][i]['species'][0]['element'])
-    return elements
-
-def pseudopotentials_filenames(structure):
-    pseudopotentials_names = [atom + '_PBE19' for atom in get_elements(structure)]
+def pseudopotentials_filenames(elements):
+    pseudopotentials_names = [atom + '_PBE19' for atom in elements]
     return pseudopotentials_names
 
-def pseudopotentials_filenames_ordered(structure):
-    pseudopotentials_names = [atom + '_PBE19' for atom in get_elements_ordered(structure)]
-    return pseudopotentials_names
-
-def pseudo_basis_names(structure, csv_file, q):
+def pseudo_basis_names(elements, csv_file, q):
     # Load the CSV file into a pandas DataFrame
     with pkg_resources.files(data).joinpath(csv_file).open('r') as f:
         df = pd.read_csv(f)
@@ -43,10 +32,10 @@ def pseudo_basis_names(structure, csv_file, q):
     selected_column = column_map[q]
 
     # Filter rows based on names_list and get the corresponding filenames
-    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames_ordered(structure))]
-
+    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames(elements))]
+    a = filtered_df[selected_column].tolist()
     # Return the list of filenames from the selected column
-    return filtered_df[selected_column].tolist()
+    return a
 
 
 #filenames = get_filenames_from_csv(csv_file, input(atoms_example), q)
@@ -55,18 +44,18 @@ def valence_electrons(elements_on_site, csv_file):
     # Load the CSV file into a pandas DataFrame
     with pkg_resources.files(data).joinpath(csv_file).open('r') as f:
         df = pd.read_csv(f)
-    elements_name = [atom + '_PBE19' for atom in elements_on_site]
 
     # Return the list of valences from the selected column
     element_to_value = dict(zip(df[df.columns[0]], df[df.columns[1]]))
 
     # Build the output list by looking up each element in the dictionary
-    valence = [element_to_value.get(element, None) for element in elements_name]
+    valence = [element_to_value.get(element, None) for element in pseudopotentials_filenames(elements_on_site)]
     return valence
 
 def atomic_species(structure, csv_file, q):
     string = "<Definition.of.Atomic.Species\n"
-    for i in range(len(get_elements(structure))):
-        string += (str(get_elements(structure)[i]) + "\t" + str(pseudo_basis_names(structure, csv_file, q)[i]) + "\t" + str(pseudopotentials_filenames(structure)[i]) + "\n")
+    elements = get_elements(structure)
+    for i in range(len(elements)):
+        string += (str(elements[i]) + "\t" + str(pseudo_basis_names(elements, csv_file, q)[i]) + "\t" + str(pseudopotentials_filenames(elements)[i]) + "\n")
     string += "Definition.of.Atomic.Species>"
     return string

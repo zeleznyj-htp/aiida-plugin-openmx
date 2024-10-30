@@ -3,7 +3,7 @@ from pymatgen.core import Structure
 import os
 from aiida_openmx.input.definition_of_atomic_species import valence_electrons
 
-
+'''
 def file_to_struct(filename):
     """
     Load a structure from a .cif or .json file.
@@ -31,10 +31,14 @@ def cif_to_struct(filename):
     structure = parser.parse_structures()[0]
     #print(type(structure))
     return structure
-
+'''
 def struct_to_dict(structure):
     #print(type(structure))
     return structure.as_dict()
+
+def dict_to_struct(structure_dict):
+    loaded_structure = Structure.from_dict(structure_dict)
+    return loaded_structure
 
 #print(cif_to_dict("Crys-MnO.cif")['charge'])
 
