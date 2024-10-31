@@ -4,20 +4,15 @@ from pathlib import Path
 from aiida_openmx import data
 from pymatgen.core import Structure
 
-def struct_to_dict(structure):
-    return structure.as_dict()
-
 def get_elements(structure):
-    structure_dict = struct_to_dict(structure)
     elements = set()
-    for i in range(len(structure_dict['sites'])):
-        elements.add(structure_dict['sites'][i]['species'][0]['element'])
+    for i in range(len(structure['sites'])):
+        elements.add(structure['sites'][i]['species'][0]['element'])
     return list(elements)
 
 def pseudopotentials_filenames(elements):
     pseudopotentials_names = [atom + '_PBE19' for atom in elements]
     return pseudopotentials_names
-
 
 def pseudo_basis_names(elements, q):
     path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -36,14 +31,11 @@ def pseudo_basis_names(elements, q):
     output_list = [value_map.get(value, None) for value in pseudopotentials_filenames(elements)]
     return output_list
 
-
-#filenames = get_filenames_from_csv(csv_file, input(atoms_example), q)
-#print(filenames)
 def valence_electrons(elements_on_site):
     # Load the CSV file into a pandas DataFrame
     path = Path(os.path.dirname(os.path.realpath(__file__)))
     csv_path = path.parent / 'data' / 'pseudopotentials.csv'
-    df = pd.read_csv(f)
+    df = pd.read_csv(csv_path)
 
     # Return the list of valences from the selected column
     element_to_value = dict(zip(df[df.columns[0]], df[df.columns[1]]))
