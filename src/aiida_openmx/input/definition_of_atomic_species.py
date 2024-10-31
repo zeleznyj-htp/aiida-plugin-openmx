@@ -1,5 +1,6 @@
 import pandas as pd
-import importlib.resources as pkg_resources
+import os
+from pathlib import Path
 from aiida_openmx import data
 from pymatgen.core import Structure
 
@@ -17,33 +18,32 @@ def pseudopotentials_filenames(elements):
     pseudopotentials_names = [atom + '_PBE19' for atom in elements]
     return pseudopotentials_names
 
-def pseudo_basis_names(elements, csv_file, q):
-    # Load the CSV file into a pandas DataFrame
-    with pkg_resources.files(data).joinpath(csv_file).open('r') as f:
-        df = pd.read_csv(f)
+
+def pseudo_basis_names(elements, q):
+    path = Path(os.path.dirname(os.path.realpath(__file__)))
+    csv_path = path.parent / 'data' / 'pseudopotentials.csv'
+    df = pd.read_csv(csv_path)
 
     # Determine which column to use based on the value of q
-    column_map = {1: df.columns[2], 2: df.columns[3], 3: df.columns[4]}
+    column_map = {1: 'Quick', 2: 'Standard', 3: 'Precise'}
 
     if q not in column_map:
         raise ValueError("Invalid value for q. Only q=1, q=2, and q=3 are supported.")
 
-    # Select the appropriate column based on q
-    selected_column = column_map[q]
-
-    # Filter rows based on names_list and get the corresponding filenames
-    filtered_df = df[df[df.columns[0]].isin(pseudopotentials_filenames(elements))]
-    a = filtered_df[selected_column].tolist()
-    # Return the list of filenames from the selected column
-    return a
+    # Create a dictionary to map values in the first column to values in the second column
+    value_map = dict(zip(df['VPS'], df[column_map[q]]))
+    # Match values in input_list with the first column and retrieve corresponding values from the second column
+    output_list = [value_map.get(value, None) for value in pseudopotentials_filenames(elements)]
+    return output_list
 
 
 #filenames = get_filenames_from_csv(csv_file, input(atoms_example), q)
 #print(filenames)
-def valence_electrons(elements_on_site, csv_file):
+def valence_electrons(elements_on_site):
     # Load the CSV file into a pandas DataFrame
-    with pkg_resources.files(data).joinpath(csv_file).open('r') as f:
-        df = pd.read_csv(f)
+    path = Path(os.path.dirname(os.path.realpath(__file__)))
+    csv_path = path.parent / 'data' / 'pseudopotentials.csv'
+    df = pd.read_csv(f)
 
     # Return the list of valences from the selected column
     element_to_value = dict(zip(df[df.columns[0]], df[df.columns[1]]))
@@ -52,10 +52,10 @@ def valence_electrons(elements_on_site, csv_file):
     valence = [element_to_value.get(element, None) for element in pseudopotentials_filenames(elements_on_site)]
     return valence
 
-def atomic_species(structure, csv_file, q):
+def atomic_species(structure, q):
     string = "<Definition.of.Atomic.Species\n"
     elements = get_elements(structure)
     for i in range(len(elements)):
-        string += (str(elements[i]) + "\t" + str(pseudo_basis_names(elements, csv_file, q)[i]) + "\t" + str(pseudopotentials_filenames(elements)[i]) + "\n")
+        string += (str(elements[i]) + "\t" + str(pseudo_basis_names(elements, q)[i]) + "\t" + str(pseudopotentials_filenames(elements)[i]) + "\n")
     string += "Definition.of.Atomic.Species>"
     return string
