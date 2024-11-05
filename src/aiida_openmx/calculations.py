@@ -30,11 +30,8 @@ class OpenMXInputFile(CalcJob):
         spec.input("metadata.options.output_filename", valid_type=str, default="met.std")
         spec.input("structure", valid_type=Dict, help="Structure of the material")
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation")
-        spec.output(
-            "output_file",
-            valid_type=SinglefileData,
-            help="output_file",
-        )
+        spec.output("output_file", valid_type=SinglefileData, help="output_file")
+        spec.output("properties", valid_type=Dict, help="Output properties of the calculation")
 
         spec.exit_code(
             300,
@@ -59,16 +56,6 @@ class OpenMXInputFile(CalcJob):
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
-
-        #structure_file = self.inputs.structure_file
-        #structure_filename = structure_file.filename
-
-        # Store the file in the calculation folder
-        #with structure_file.open(mode='rb') as fhandle1:
-        #    folder.create_file_from_filelike(fhandle1, structure_filename)
-
-        # Construct the full path to the file in the calculation folder
-        #structure_file_path = folder.get_abs_path(structure_filename)
         calcinfo.retrieve_list = [self.metadata.options.output_filename]
 
         return calcinfo

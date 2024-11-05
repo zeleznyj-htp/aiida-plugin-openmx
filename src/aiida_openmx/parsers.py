@@ -6,20 +6,18 @@ Register parsers via the "aiida.parsers" entry point in setup.json.
 
 from aiida.common import exceptions
 from aiida.engine import ExitCode
-from aiida.orm import SinglefileData
+from aiida.orm import SinglefileData, Dict
 from aiida.parsers.parser import Parser
 from aiida.plugins import CalculationFactory
-
+import logging
 import re
 
 OpenMXInputFile = CalculationFactory("openmx")
-
-
+logger = logging.getLogger(__name__)
 class OpenMXParser(Parser):
     """
     Parser class for parsing output of calculation.
     """
-
     def __init__(self, node):
         """
         Initialize Parser instance
@@ -51,12 +49,15 @@ class OpenMXParser(Parser):
 
         # add output file
         self.logger.info(f"Parsing '{output_filename}'")
-        with self.retrieved.open(output_filename, "rb") as handle:
-            output_node = SinglefileData(file=handle)
-            output_lines = handle.readlines()
-        properties = parse_std(output_lines)
+        with self.retrieved.open(output_filename, "rb") as handle1:
+            output_node = SinglefileData(file=handle1)
         self.out("output_file", output_node)
-
+        
+        with self.retrieved.open(output_filename, "r") as handle2:
+            output_lines = handle2.readlines()
+        properties = parse_std(output_lines)
+        output_dict = Dict(dict=properties)
+        self.out("properties", output_dict)
         return ExitCode(0)
 
 def parse_std(lines):
@@ -71,6 +72,7 @@ def parse_std(lines):
     properties['Utot'] = None
 
     for line in lines:
+        logger.debug("Reading lines")
         if 'The calculation was normally finished.' in line:
             properties['finished_normally'] = True
         if 'The SCF was achieved' in line:
@@ -79,7 +81,7 @@ def parse_std(lines):
             match = re.search(r"Utot\s*=\s*(-?\d+\.\d+)", line)
             if match is not None:
                 properties['Utot'] = float(match.group(1))
-
+        logger.report("Preparing for submission with inputs: %s", properties['finished_normally'])
     convergence = []
     for line in lines:
         if 'dUele' in line:
@@ -92,12 +94,13 @@ def parse_std(lines):
     convergence_moment = []
     for line in lines:
         if 'Total Spin Moment' in line:
+            logger.report("Total SPin Moment found")
             try:
                 convergence_moment.append(float(line.split('=')[1]))
             except:
                 convergence_moment.append(None)
     properties['convergence_moment'] = convergence_moment
 
-    #properties['spin_moment'] = convergence_moment[-1]
+    properties['spin_moment'] = convergence_moment[-1]
 
     return properties
