@@ -55,7 +55,7 @@ class OpenMXParser(Parser):
             output_node = SinglefileData(file=handle)
             output_lines = handle.readlines()
         properties = parse_std(output_lines)
-        self.out("openmx", output_node)
+        self.out("output_file", output_node)
 
         return ExitCode(0)
 
@@ -98,6 +98,6 @@ def parse_std(lines):
                 convergence_moment.append(None)
     properties['convergence_moment'] = convergence_moment
 
-    properties['spin_moment'] = convergence_moment[-1]
+    #properties['spin_moment'] = convergence_moment[-1]
 
     return properties
