@@ -9,6 +9,9 @@ from aiida.engine import ExitCode
 from aiida.orm import SinglefileData, Dict
 from aiida.parsers.parser import Parser
 from aiida.plugins import CalculationFactory
+
+from aiida_openmx import __version__
+
 import logging
 import re
 
@@ -55,9 +58,17 @@ class OpenMXParser(Parser):
         
         with self.retrieved.open(output_filename, "r") as handle2:
             output_lines = handle2.readlines()
-        properties = parse_std(output_lines)
+        properties, openmx_version = parse_std(output_lines)
+
         output_dict = Dict(dict=properties)
         self.out("properties", output_dict)
+
+        calculation_info = {
+            'openmx_version' : openmx_version,
+            'aiida_openmx_plugin_version' : __version__
+                            }
+
+        self.out('calculation_info', Dict(calculation_info))
         return ExitCode(0)
 
 def parse_std(lines):
@@ -71,8 +82,9 @@ def parse_std(lines):
     properties['converged'] = False
     properties['Utot'] = None
 
+    version = None
+
     for line in lines:
-        logger.debug("Reading lines")
         if 'The calculation was normally finished.' in line:
             properties['finished_normally'] = True
         if 'The SCF was achieved' in line:
@@ -81,7 +93,9 @@ def parse_std(lines):
             match = re.search(r"Utot\s*=\s*(-?\d+\.\d+)", line)
             if match is not None:
                 properties['Utot'] = float(match.group(1))
-        logger.report("Preparing for submission with inputs: %s", properties['finished_normally'])
+        if 'Ver.' in line:
+            version = line.split()[-1]
+
     convergence = []
     for line in lines:
         if 'dUele' in line:
@@ -101,6 +115,10 @@ def parse_std(lines):
                 convergence_moment.append(None)
     properties['convergence_moment'] = convergence_moment
 
-    properties['spin_moment'] = convergence_moment[-1]
+    if len(convergence_moment) > 0:
+        properties['spin_moment'] = convergence_moment[-1]
+    else:
+        properties['spin_moment'] = None
 
-    return properties
+
+    return properties, version
