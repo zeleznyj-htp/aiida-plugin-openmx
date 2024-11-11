@@ -1,15 +1,10 @@
 from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors
-from aiida_openmx.input.definition_of_atomic_species import atomic_species, get_elements, band_path
+from aiida_openmx.input.definition_of_atomic_species import atomic_species, get_elements, band_path, band_kpath_unit_cell
 from aiida_openmx.input.flat import replace_backslash
-from aiida.orm import Dict
-from pymatgen.core import Structure
 
 def write_mixed_output(input_file, folder, data_backslash, structure, precision, spin_split=None, executable_path=None, n_bands = None, critical_points = None, k_path = None):
     """
     Write key-value pairs and structure elements based on the specified sequence.
-    :param output: Path to the output text file
-    :param data: Dictionary with keys and their values
-    :param structure_filename: List containing text to insert
     """
     data = replace_backslash(data_backslash)
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, precision),
@@ -24,7 +19,7 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
 
         #these should not be changed by user since they are internal to how aiida does the calculation
         data['System.Name'] = 'aiida'
-        data['System.CurrrentDir'] = './'
+        data['System.CurrentDir'] = './'
 
         #in case the 'Atoms.SpeciesAndCoordinates.Unit' is present in the dict we remove it
         data.pop('Atoms.SpeciesAndCoordinates.Unit',None)
@@ -46,4 +41,5 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
                 value = data[item]
                 handle.write(f"{item:<35} {value:<35}\n")
         if ('Band.dispersion' in data) and (data['Band.dispersion'] in ['on','On','ON']):
-            handle.write(band_path(n_bands, critical_points, k_path)+'\n')
+            handle.write(band_kpath_unit_cell(structure))
+            handle.write(band_path(n_bands, critical_points, k_path))

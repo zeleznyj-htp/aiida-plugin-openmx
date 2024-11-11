@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from pathlib import Path
+import numpy as np
 from aiida_openmx import data
 from pymatgen.core import Structure
 
@@ -60,3 +61,15 @@ def band_path(n, critical_p, k_path):
             string += "  "+str(n)+"  "+" ".join([str(s) for s in critical_p[sub_path[i]]])+"   "+" ".join([str(s) for s in critical_p[sub_path[i+1]]])+"   "+sub_path[i]+" "+sub_path[i+1]+"\n"
     string += "Band.kpath>"
     return string
+
+def band_kpath_unit_cell(structure):
+    string = "<Band.KPath.UnitCell\n"
+    lengths = structure['lattice']['matrix']
+    s1 = 2*np.pi/(lengths[0][0])
+    s2 = 2*np.pi/(lengths[1][1])
+    s3 = 2*np.pi/(lengths[2][2])
+    string += f"{s1} 0 0\n0 {s2} 0\n0 0 {s3}\n"
+    string += "Band.KPath.UnitCell>\n"
+    return string
+
+print(band_kpath_unit_cell(structure))
