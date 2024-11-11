@@ -71,5 +71,3 @@ def band_kpath_unit_cell(structure):
     string += f"{s1} 0 0\n0 {s2} 0\n0 0 {s3}\n"
     string += "Band.KPath.UnitCell>\n"
     return string
-
-print(band_kpath_unit_cell(structure))
