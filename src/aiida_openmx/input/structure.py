@@ -19,8 +19,14 @@ def get_valence_split(structure,spin_split=None):
         n_up = (v + m) / 2
         n_down = (v - m) / 2
 
-        if n_up < 0 or n_down < 0:
-            raise Exception('The initial charge for atom {} is negative, spin-split too high.'.format(i))
+        if n_up < 0:
+            n_up = 0
+            n_down = v
+
+        if n_down < 0:
+            n_down = 0
+            n_up = v
+
         valence_split.append(( n_up, n_down))
 
     return valence_split

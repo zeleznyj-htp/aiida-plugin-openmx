@@ -80,12 +80,18 @@ class OpenMX(CalcJob):
         codeinfo.cmdline_params = [input_filename]
         codeinfo.code_uuid = self.inputs.code.uuid
         codeinfo.stdout_name = self.metadata.options.output_filename
+
+        if self.inputs.spin_splits is None:
+            spin_splits = None
+        else:
+            spin_splits = self.inputs.spin_splits.get_list()
+
         write_mixed_output(input_filename,
                            folder,
                            self.inputs.parameters.get_dict(),
                            self.inputs.structure.get_dict(),
                            self.inputs.precision.value,
-                           self.inputs.spin_splits.get_list(),
+                           spin_splits,
                            self.inputs.code.filepath_executable)
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
