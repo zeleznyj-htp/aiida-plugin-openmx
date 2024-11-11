@@ -11,7 +11,8 @@ def get_elements(structure):
     return list(elements)
 
 def pseudopotentials_filenames(elements):
-    pseudopotentials_names = [atom + '_PBE19' for atom in elements]
+    weird = ['Fe','Co','Ni','Cu','Zn']
+    pseudopotentials_names = [atom + '_PBE19H' if atom in weird else atom + '_PBE19' for atom in elements]
     return pseudopotentials_names
 
 def pseudo_basis_names(elements, q):
@@ -50,4 +51,12 @@ def atomic_species(structure, q):
     for i in range(len(elements)):
         string += (str(elements[i]) + "\t" + str(pseudo_basis_names(elements, q)[i]) + "\t" + str(pseudopotentials_filenames(elements)[i]) + "\n")
     string += "Definition.of.Atomic.Species>"
+    return string
+
+def band_path(n, critical_p, k_path):
+    string = "<Band.kpath\n"
+    for sub_path in k_path:
+        for i in range(len(sub_path)-1):
+            string += "  "+str(n)+"  "+" ".join([str(s) for s in critical_p[sub_path[i]]])+"   "+" ".join([str(s) for s in critical_p[sub_path[i+1]]])+"   "+sub_path[i]+" "+sub_path[i+1]+"\n"
+    string += "Band.kpath>"
     return string

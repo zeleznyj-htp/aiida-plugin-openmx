@@ -3,6 +3,7 @@ from pymatgen.io.cif import CifParser
 from pymatgen.core import Structure
 import os
 from aiida_openmx.input.definition_of_atomic_species import valence_electrons
+from symmetr.magndata import get_magndata_structure
 
 def get_valence_split(structure,spin_split=None):
     elements_on_site = []

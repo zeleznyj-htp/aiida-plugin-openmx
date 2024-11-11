@@ -57,6 +57,17 @@ class OpenMX(CalcJob):
                     serializer=to_aiida_type,
                     validator=spin_split_validator,
                     required=False)
+        spec.input("critical_points", valid_type=Dict, default=None,
+                   help="The coordinates of th critical points",
+                   serializer=to_aiida_type,
+                   required=False)
+        spec.input("k_path", valid_type=List, default=None,
+                   help="The path defined by the critical points",
+                   serializer=to_aiida_type,
+                   required=False)
+        spec.input("n_band", valid_type=Int, default=lambda: Int(15),
+                   help="Number of plotted points between two critical points in the band plot",
+                   serializer=to_aiida_type)
         spec.output("output_file", valid_type=SinglefileData, help="output_file")
         spec.output("properties", valid_type=Dict, help="Output properties of the calculation")
         spec.output("calculation_info", valid_type=Dict, help="Shows versions of the software used to run the calculation.")
@@ -86,13 +97,26 @@ class OpenMX(CalcJob):
         else:
             spin_splits = self.inputs.spin_splits.get_list()
 
+        if self.inputs.critical_points is None:
+            critical_points = None
+        else:
+            critical_points = self.inputs.critical_points.get_dict()
+
+        if self.inputs.k_path is None:
+            k_path = None
+        else:
+            k_path = self.inputs.k_path.get_list()
+
         write_mixed_output(input_filename,
                            folder,
                            self.inputs.parameters.get_dict(),
                            self.inputs.structure.get_dict(),
                            self.inputs.precision.value,
                            spin_splits,
-                           self.inputs.code.filepath_executable)
+                           self.inputs.code.filepath_executable,
+                           self.inputs.n_band.value,
+                           critical_points,
+                           k_path)
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
