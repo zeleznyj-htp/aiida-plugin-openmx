@@ -62,15 +62,16 @@ class OpenMX(CalcJob):
                     serializer=to_aiida_type,
                     validator=spin_split_validator,
                     required=False)
-        spec.input("critical_points", valid_type=Dict, default=None,
+        spec.input_namespace('bands')
+        spec.input("bands.critical_points", valid_type=Dict, default=None,
                    help="The coordinates of th critical points",
                    serializer=to_aiida_type,
                    required=False)
-        spec.input("k_path", valid_type=List, default=None,
+        spec.input("bands.k_path", valid_type=List, default=None,
                    help="The path defined by the critical points",
                    serializer=to_aiida_type,
                    required=False)
-        spec.input("n_band", valid_type=Int, default=lambda: Int(15),
+        spec.input("bands.n_band", valid_type=Int, default=lambda: Int(15),
                    help="Number of plotted points between two critical points in the band plot",
                    serializer=to_aiida_type)
         spec.output("output_file", valid_type=SinglefileData, help="output_file")
@@ -102,15 +103,15 @@ class OpenMX(CalcJob):
         else:
             spin_splits = self.inputs.spin_splits.get_list()
 
-        if self.inputs.critical_points is None:
+        if self.inputs.bands.critical_points is None:
             critical_points = None
         else:
-            critical_points = self.inputs.critical_points.get_dict()
+            critical_points = self.inputs.bands.critical_points.get_dict()
 
-        if self.inputs.k_path is None:
+        if self.inputs.bands.k_path is None:
             k_path = None
         else:
-            k_path = self.inputs.k_path.get_list()
+            k_path = self.inputs.bands.k_path.get_list()
 
         write_mixed_output(input_filename,
                            folder,
@@ -119,7 +120,7 @@ class OpenMX(CalcJob):
                            self.inputs.precision.value,
                            spin_splits,
                            self.inputs.code.filepath_executable,
-                           self.inputs.n_band.value,
+                           self.inputs.bands.n_band.value,
                            critical_points,
                            k_path)
         # Prepare a `CalcInfo` to be returned to the engine
