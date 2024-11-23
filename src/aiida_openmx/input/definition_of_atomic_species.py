@@ -55,19 +55,20 @@ def atomic_species(structure, q):
     return string
 
 def band_path(n, critical_p, k_path):
+    n_path = 0
     string = "<Band.kpath\n"
     for sub_path in k_path:
         for i in range(len(sub_path)-1):
+            n_path += 1
             string += "  "+str(n)+"  "+" ".join([str(s) for s in critical_p[sub_path[i]]])+"   "+" ".join([str(s) for s in critical_p[sub_path[i+1]]])+"   "+sub_path[i]+" "+sub_path[i+1]+"\n"
-    string += "Band.kpath>"
+    string += "Band.kpath>\n"
+    string += "Band.Nkpath  {}\n".format(n_path)
     return string
 
-def band_kpath_unit_cell(structure):
+def band_kpath_unit_cell(unit_cell):
     string = "<Band.KPath.UnitCell\n"
-    lengths = structure['lattice']['matrix']
-    s1 = 2*np.pi/(lengths[0][0])
-    s2 = 2*np.pi/(lengths[1][1])
-    s3 = 2*np.pi/(lengths[2][2])
-    string += f"{s1} 0 0\n0 {s2} 0\n0 0 {s3}\n"
+    for i in range(3):
+        string += ' '.join([str(x) for x in unit_cell[i, :]])
+        string += '\n'
     string += "Band.KPath.UnitCell>\n"
     return string

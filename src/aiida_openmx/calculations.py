@@ -6,7 +6,7 @@ Register calculations via the "aiida.calculations" entry point in setup.json.
 from aiida.common import datastructures
 from aiida.common.folders import Folder
 from aiida.engine import CalcJob
-from aiida.orm import SinglefileData, Dict, Int, to_aiida_type, List, FolderData
+from aiida.orm import SinglefileData, Dict, Int, to_aiida_type, List, FolderData, ArrayData
 from aiida.plugins import DataFactory
 
 from aiida_openmx.input.dict_to_file import write_mixed_output
@@ -28,6 +28,20 @@ class OpenMX(CalcJob):
                         in the format of keyword: value.
     :param precision: Integer that controls the size of the basis. 1 is smallest, 3 is the largest.
     :param spin_splits: A list of initial spin-polarizations for each atom.
+    :param bands.critical_points: Dict defining The points in reciprocal space that define the paths in the k-space.
+        Example:
+            {
+                'G': [0,0,0],
+                'H': [-0.5,0.5,0.5],
+                'N': [0,0.5,0],
+                'P': [0.25,0.25,0.25]
+            }
+    :param bands.k_path: A List of list containg the paths along which the bands are calculated using the defintion of
+        the critical points.
+        Example: [['G','H','N'],['G','P','H']]
+    :param bands.n_band: Number of k-points along each line in the path.
+    :param bands.unit_cell: 3x3 Array. Definition of the reciprocal unit cell. IF not present then the recirpocal cell
+        corresponding to the lattice unit vectors is used.
 
     Parameters can contain any openmx keywords with the following exceptions:
 
@@ -74,6 +88,11 @@ class OpenMX(CalcJob):
         spec.input("bands.n_band", valid_type=Int, default=lambda: Int(15),
                    help="Number of plotted points between two critical points in the band plot",
                    serializer=to_aiida_type)
+        spec.input("bands.unit_cell", valid_type=ArrayData, default=None,
+                   help="The reciprocal unit cell with respect to which the critical points are defined."
+                        "If not present, openmx will use by default the unit cell corresponding to the lattice unit cell.",
+                   serializer=to_aiida_type,
+                   required=False)
         spec.output("output_file", valid_type=SinglefileData, help="output_file")
         spec.output("properties", valid_type=Dict, help="Output properties of the calculation")
         spec.output("calculation_info", valid_type=Dict, help="Shows versions of the software used to run the calculation.")
@@ -113,6 +132,11 @@ class OpenMX(CalcJob):
         else:
             k_path = self.inputs.bands.k_path.get_list()
 
+        if self.inputs.bands.unit_cell is None:
+            unit_cell = None
+        else:
+            unit_cell = self.inputs.bands.unit_cell.get_array()
+
         write_mixed_output(input_filename,
                            folder,
                            self.inputs.parameters.get_dict(),
@@ -122,7 +146,8 @@ class OpenMX(CalcJob):
                            self.inputs.code.filepath_executable,
                            self.inputs.bands.n_band.value,
                            critical_points,
-                           k_path)
+                           k_path,
+                           unit_cell)
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
