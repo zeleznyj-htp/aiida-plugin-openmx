@@ -32,7 +32,7 @@ def get_valence_split(structure,spin_split=None):
 
     return valence_split
 
-def atom_spec_coord(structure, spin_split=None):
+def atom_spec_coord(structure, spin_split=None, plusU_orbital=None):
     elements_on_site = []
     s_vectors = []
     for i in range(len(structure['sites'])):
@@ -40,12 +40,20 @@ def atom_spec_coord(structure, spin_split=None):
         a_vectors = [str(a) for a in structure['sites'][i]['abc']]
         s_vectors.append(" ".join(a_vectors))
 
+    bool_to_on = {True: 'on', False: 'off'}
+    if plusU_orbital is not None:
+        if isinstance(plusU_orbital,bool):
+            plusU_orbital = [plusU_orbital] * len(elements_on_site)
+        orbital_string = [bool_to_on[x] for x in plusU_orbital]
+    else:
+        orbital_string = [''] * len(elements_on_site)
+
     valence_split = get_valence_split(structure, spin_split)
 
     string = "<Atoms.SpeciesAndCoordinates\n"
     for i in range(len(elements_on_site)):
         string += (str(i+1) +"\t" + elements_on_site[i] + "\t" + s_vectors[i] +"\t"+
-                   str(valence_split[i][0]) + "\t"+ str(valence_split[i][1])+"\n")
+                   str(valence_split[i][0]) + "\t"+ str(valence_split[i][1]) + "\t" + orbital_string[i] + "\n")
     string += "Atoms.SpeciesAndCoordinates>"
     return string
 

@@ -6,7 +6,7 @@ Register calculations via the "aiida.calculations" entry point in setup.json.
 from aiida.common import datastructures
 from aiida.common.folders import Folder
 from aiida.engine import CalcJob
-from aiida.orm import SinglefileData, Dict, Int, to_aiida_type, List, FolderData, ArrayData
+from aiida.orm import SinglefileData, Dict, Int, Bool, to_aiida_type, List, FolderData, ArrayData
 from aiida.plugins import DataFactory
 
 from aiida_openmx.input.dict_to_file import write_mixed_output
@@ -18,6 +18,7 @@ from aiida_openmx.sd_model.sd_model import Model, input_from_pymatgen
 from pymatgen.core import Structure
 
 import numbers
+import re
 
 class OpenMX(CalcJob):
     """
@@ -36,6 +37,10 @@ class OpenMX(CalcJob):
                 'N': [0,0.5,0],
                 'P': [0.25,0.25,0.25]
             }
+    :param plusU_orbital: Bool or [Bool], specifies whether the yes switch should be used for DFT+U which is used to get
+        a state with orbital polarization. If it's a list then this specifies it for each atom.
+    :param retrieve_rst: Bool that controls whether the _rst files are retrieved.
+    :param rst_files: Folder containing the _rst files used for restarting the calculation.
     :param bands.k_path: A List of list containg the paths along which the bands are calculated using the defintion of
         the critical points.
         Example: [['G','H','N'],['G','P','H']]
@@ -50,6 +55,12 @@ class OpenMX(CalcJob):
     - Atoms.UnitVectors.Unit is Ang by default, but this can be specified in the input
     - Species.Number, Atoms.Number: Need not to be specified though they can be.
     - DATA.PATH: this is by default assumed to be ../../DATA_DFT19 with respect to the openmx executable
+
+    The values in parameters can be numbers or strings, lists of numbers or strings, nested strings or numpy arrays.
+
+    If parameter starts with <, then the value will be put into new line and closed with >parameter. So for example:
+
+    
 
     """
 
@@ -76,6 +87,16 @@ class OpenMX(CalcJob):
                     serializer=to_aiida_type,
                     validator=spin_split_validator,
                     required=False)
+        spec.input("plusU_orbital", valid_type=(Bool,List) , default=lambda: Bool(False),
+                   help="Controls whether to use the on switch to find orbital polarization with DFT+U."
+                        "Can be either boolean or a list of booleans, which then controls this switch for every atom.",
+                   serializer=to_aiida_type,
+                   )
+        spec.input("retrieve_rst", valid_type=Bool, default=lambda: Bool(False),
+                   help="Controls whether the _rst files are downloaded, which allow for continuing the calculation.",
+                   serializer=to_aiida_type)
+        spec.input("rst_files", valid_type=FolderData, required=False, default=None,
+                   help="Folder containing the rst files needed to restart OpenMX calculation.")
         spec.input_namespace('bands')
         spec.input("bands.critical_points", valid_type=Dict, default=None,
                    help="The coordinates of th critical points",
@@ -137,9 +158,18 @@ class OpenMX(CalcJob):
         else:
             unit_cell = self.inputs.bands.unit_cell.get_array()
 
+        if isinstance(self.inputs.plusU_orbital,Bool):
+            plusU_orbital = self.inputs.plusU_orbital.value
+        else:
+            plusU_orbital = self.inputs.plusU_orbital.get_list()
+
+
+
+        parameters = self.inputs.parameters.get_dict()
+
         write_mixed_output(input_filename,
                            folder,
-                           self.inputs.parameters.get_dict(),
+                           parameters,
                            self.inputs.structure.get_dict(),
                            self.inputs.precision.value,
                            spin_splits,
@@ -147,12 +177,35 @@ class OpenMX(CalcJob):
                            self.inputs.bands.n_band.value,
                            critical_points,
                            k_path,
-                           unit_cell)
+                           unit_cell,
+                           plusU_orbital)
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
+        calcinfo.local_copy_list = []
+
+        if self.inputs.rst_files is not None:
+
+            #It seems it's not possible to use pattern matching in local_copy_list
+            file_names = self.inputs.rst_files.list_object_names()
+            rst_directory = None
+            for fname in file_names:
+                if re.match('.+_rst',fname) is not None:
+                    rst_directory = fname
+                    break
+
+            if rst_directory is None:
+                raise Exception('No rst_files present in the folder.')
+
+            calcinfo.local_copy_list.append((self.inputs.rst_files.uuid, rst_directory, '.'))
+
+            if 'scf.restart' not in parameters:
+                parameters['scf.restart'] = 'on'
+
         calcinfo.retrieve_list = ['input_file','*.std','*.xyz','*.out','*.md','*.Band','*.Dos.*','*.scfout',
                                   self.metadata.options.output_filename]
+        if self.inputs.retrieve_rst:
+            calcinfo.retrieve_list.append(('*_rst/*','.',2))
 
         return calcinfo
 

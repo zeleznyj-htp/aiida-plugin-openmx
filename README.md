@@ -61,7 +61,7 @@ For more information, see the [developer guide](https://aiida-diff.readthedocs.i
    ```python
    d = { 'ignore-case': True }
    DiffParameters = DataFactory('openmx')
-   inputs['parameters'] = DiffParameters(dict=d)
+   inputs['parameters_init'] = DiffParameters(dict=d)
    ```
 
  * `DiffParameters` dictionaries are validated using [voluptuous](https://github.com/alecthomas/voluptuous).

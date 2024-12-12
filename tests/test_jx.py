@@ -8,7 +8,7 @@ from aiida import load_profile
 
 from aiida_openmx.calculations import find_nns, define_ij_pairs
 
-from .common import bccFe, parameters, load_config
+from .common import bccFe, parameters_init, load_config
 
 load_profile()
 
@@ -21,7 +21,7 @@ def openmx_calc():
     code = load_code(code_openmx)
     builder = code.get_builder()
 
-    builder.parameters = parameters
+    builder.parameters = parameters_init
     builder.structure = bccFe.as_dict()
     builder.precision = 1
     builder.spin_splits = [2]

@@ -3,14 +3,50 @@ from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors
 from aiida_openmx.input.definition_of_atomic_species import atomic_species, get_elements, band_path, band_kpath_unit_cell
 from aiida_openmx.input.flat import replace_backslash
 
+import numpy as np
+
+def convert_to_string(value):
+    """
+    Converts the input value to a string.
+    - For numbers or strings, returns the string representation.
+    - For 1D lists or numpy arrays, returns a space-separated string of elements.
+    - For 2D lists or numpy arrays, returns a newline-separated string of space-separated rows.
+
+    Args:
+        value (int, float, str, list, numpy.ndarray): The input value to convert.
+
+    Returns:
+        str: The formatted string.
+    """
+    if isinstance(value, (int, float, str)):  # Handle numbers and strings
+        return str(value)
+
+    elif ( isinstance(value, list) and all(isinstance(item, (int, float, str)) for item in value) ) \
+        or ( isinstance(value, np.ndarray) and value.ndim == 1 ):
+        # Handle 1D lists and numpy arrays
+        return ' '.join(str(item) for item in value)
+
+    elif (isinstance(value, list) and all(isinstance(item, list) for item in value)) or \
+         (isinstance(value, np.ndarray) and value.ndim == 2):
+        # Handle 2D lists and numpy arrays
+        return '\n'.join(' '.join(str(sub_item) for sub_item in row) for row in value)
+
+    else:
+        raise TypeError("Input must be an int, float, str, list, or numpy array.")
+
+
 def write_mixed_output(input_file, folder, data_backslash, structure, precision, spin_split=None, executable_path=None,
-                       n_bands = None, critical_points = None, k_path = None, unit_cell=None):
+                       n_bands = None, critical_points = None, k_path = None, unit_cell=None, plusU_orbital=False):
     """
     Write key-value pairs and structure elements based on the specified sequence.
     """
     data = replace_backslash(data_backslash)
+
+    if 'scf.Hubbard.U' not in data or data['scf.Hubbard.U'] == 'off':
+        plusU_orbital = None
+
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, precision),
-                        'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, spin_split),
+                        'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, spin_split, plusU_orbital),
                         'Atoms.UnitVectors': atom_unit_vectors(structure)}
     with folder.open(input_file, 'w') as handle:
         for item in structure_string:
@@ -41,7 +77,13 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
         for item in sorted(data.keys()):
                 # Write the key-value pair from the dictionary
                 value = data[item]
-                handle.write(f"{item:<35} {value:<35}\n")
+                if not item.startswith('<'):
+                    handle.write(f"{item:<35} {convert_to_string(value):<35}\n")
+                else:
+                    handle.write(f"{item}\n")
+                    handle.write(convert_to_string(value)+"\n")
+                    handle.write(f"{item[1:]}>\n")
+
         if ('Band.dispersion' in data) and (data['Band.dispersion'] in ['on','On','ON']):
             if None in [n_bands, critical_points, k_path]:
                 raise InputValidationError('For bands calcualation n_bands, critical_points and k_path must be defined.')

@@ -2,15 +2,15 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 from aiida_shell import launch_shell_job
+from aiida.plugins import CalculationFactory
 from aiida.orm import SinglefileData
 
-def run_bandgnu(n, bandgnu_path):
+def run_bandgnu(bandgnu_path, retrieved):
     results, node = launch_shell_job(
         bandgnu_path,
         arguments='aiida.Band',
         nodes={
-            'single_file': SinglefileData.from_string(n.outputs.retrieved.get_object_content('aiida.Band'),
-                                                      filename='aiida.Band'),
+            'directory': retrieved,
         },
         outputs=['aiida.BANDDAT*', 'aiida.GNUBAND']
     )
@@ -52,7 +52,7 @@ def read_band_data(file_lines):
         data.append(np.array(block))
     return data
 
-def plot_from_gnuplot_config(results, config):
+def plot_from_gnuplot_config(results, config, ylim=None):
     fig, ax = plt.subplots()
 
     # Plot data from each file
@@ -66,7 +66,10 @@ def plot_from_gnuplot_config(results, config):
 
     # Configure plot
     ax.set_xlim(config['xrange'])
-    ax.set_ylim(config['yrange'])
+    if ylim is None:
+        ax.set_ylim(config['yrange'])
+    else:
+        ax.set_ylim(ylim)
     ax.set_ylabel(config['ylabel'])
 
     # Configure x-ticks
@@ -86,8 +89,27 @@ def plot_from_gnuplot_config(results, config):
     plt.show()
     return fig, ax
 
-def plot_bands(n, bandgnu_path):
-    results, node = run_bandgnu(n, bandgnu_path)
+def plot_bands(n, bandgnu_path=None, ylim=None):
+    """
+    This will plot the bands for a given calcultion node n. If bandgnu has not been run, it will run it, otherwise it
+    will utilize previous bandgnu result.
+    """
+
+    nr = n.outputs.retrieved
+    outlinks = nr.base.links.get_outgoing(node_class=CalculationFactory('core.shell')).all_nodes()
+
+    bandgnu_node = None
+    for link in outlinks:
+        if 'bandgnu13' in link.base.attributes.get('process_label'):
+            if 'aiida_GNUBAND' in link.outputs:
+                bandgnu_node = link
+                results = link.outputs
+
+    if bandgnu_node is None:
+        if bandgnu_path is None:
+            raise Exception('bandgnu_path must be specified')
+        results, bandgnu_node = run_bandgnu(bandgnu_path, n.outputs.retrieved)
+
     config = parse_gnuplot_script(results['aiida_GNUBAND'].get_content().split('\n'))
-    fig, ax = plot_from_gnuplot_config(results, config)
-    return results, node, fig, ax
+    fig, ax = plot_from_gnuplot_config(results, config, ylim=ylim)
+    return fig, ax

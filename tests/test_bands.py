@@ -1,11 +1,15 @@
-from .common import bccFe, parameters, load_config
+from joblib.testing import param
+
+from .common import bccFe, parameters_init, load_config
 from aiida.orm import load_code, load_node
 from aiida.engine import run_get_pk
+from copy import copy
 
 from aiida import load_profile
 load_profile()
 
 def test_bands():
+    parameters = copy(parameters_init)
     parameters['Band.dispersion'] = 'on'
 
     code_openmx, code_jx, options = load_config()

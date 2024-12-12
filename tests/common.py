@@ -4,7 +4,7 @@ import numpy as np
 lattice = Lattice.from_parameters(2.459,2.459,2.459,109.471,109.471,109.471)
 bccFe = Structure(lattice,['Fe'],[[0.0,0.0,0.0]],site_properties={'magmom':[np.array([1.0,0.0,0.0])]})
 
-parameters = {
+parameters_init = {
     #"System.CurrrentDirectory": "./",
     'level.of.stdout': 1,
     'level.of.fileout': 1,
