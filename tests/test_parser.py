@@ -39,3 +39,20 @@ def test_parse_jx_empty():
     lines = ['']
     finished_ok, Jijs = parse_jx_std(lines)
     assert not finished_ok
+
+def test_parse_non_collinear():
+    with open(TEST_DIR / 'example_outputs' / 'Mn3NiN_non_collinear.std') as f:
+        lines = f.readlines()
+    properties, version = parse_std(lines)
+
+    assert len(properties['mulliken']) == 5
+    assert len(properties['mulliken'][1]['diff']) == 200
+    assert abs(properties['mulliken'][1]['diff'][-1] - 3.25) < 1e-5
+    assert abs(properties['mulliken'][1]['sum'][-1] - 14.62) < 1e-5
+    assert abs(properties['mulliken'][1]['euler'][-1][0] - 114.09) < 1e-5
+    assert abs(properties['mulliken'][3]['euler'][-1][1] - 116.57) < 1e-5
+
+    assert None not in properties['convergence_moment']
+    assert (properties['convergence_moment'][43] - 0.000298734) / 0.000298734  < 1e-5
+
+

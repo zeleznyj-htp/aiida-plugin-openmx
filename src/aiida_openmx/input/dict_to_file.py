@@ -5,6 +5,17 @@ from aiida_openmx.input.flat import replace_backslash
 
 import numpy as np
 
+def dict_lowercase(d):
+    d2 = {}
+    for key in d:
+        if isinstance(d[key],str):
+            val = d[key].lower()
+        else:
+            val = d[key]
+        d2[key.lower()] = val
+
+    return d2
+
 def convert_to_string(value):
     """
     Converts the input value to a string.
@@ -35,7 +46,8 @@ def convert_to_string(value):
         raise TypeError("Input must be an int, float, str, list, or numpy array.")
 
 
-def write_mixed_output(input_file, folder, data_backslash, structure, precision, spin_split=None, executable_path=None,
+def write_mixed_output(input_file, folder, data_backslash, structure, precision, spin_split=None,
+                       non_collinear = False, non_collinear_constraint = 1, executable_path=None,
                        n_bands = None, critical_points = None, k_path = None, unit_cell=None, plusU_orbital=False):
     """
     Write key-value pairs and structure elements based on the specified sequence.
@@ -46,7 +58,7 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
         plusU_orbital = None
 
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, precision),
-                        'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, spin_split, plusU_orbital),
+                        'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, spin_split, non_collinear, non_collinear_constraint, plusU_orbital),
                         'Atoms.UnitVectors': atom_unit_vectors(structure)}
     with folder.open(input_file, 'w') as handle:
         for item in structure_string:

@@ -166,7 +166,10 @@ def parse_std(lines):
         if 'Total Spin Moment' in line:
             logger.report("Total SPin Moment found")
             try:
-                convergence_moment.append(float(line.split('=')[1]))
+                if '=' in line:
+                    convergence_moment.append(float(line.split('=')[1]))
+                else:
+                    convergence_moment.append(float(line.split()[5]))
             except:
                 convergence_moment.append(None)
     properties['convergence_moment'] = convergence_moment
@@ -176,6 +179,59 @@ def parse_std(lines):
     else:
         properties['spin_moment'] = None
 
+    mulliken = {}
+    for line in lines:
+        if 'MulP' in line:
+            line_s = line.split()
+            if line_s[0] == 'Sum':
+                continue
+            try:
+                atom_n = int(line_s[0])
+                if atom_n not in mulliken:
+                    mulliken[atom_n] = {}
+                    mulliken[atom_n]['sum'] = []
+                    mulliken[atom_n]['diff'] = []
+                    mulliken[atom_n]['euler'] = []  # Initialize euler list even if not always present
+
+                mulliken[atom_n]['sum'].append(float(line_s[6]))
+                mulliken[atom_n]['diff'].append(float(line_s[8]))
+
+                # Parse Euler angles if present (look for '(' after 'diff' value)
+                if len(line_s) > 9:  # Check if there are more elements after 'diff'
+                    euler_start_index = -1
+                    for i in range(9, len(line_s)):  # Start searching from index after 'diff'
+                        if '(' in line_s[i]:
+                            euler_start_index = i
+                            break
+
+                    if euler_start_index != -1:  # Found '(' indicating Euler angles
+                        euler_str = ""
+                        for i in range(euler_start_index, len(line_s)):
+                            euler_str += line_s[i] + " "  # Reconstruct the Euler angle string
+
+                        euler_str = euler_str.strip()  # Remove leading/trailing spaces
+                        start_paren = euler_str.find('(')
+                        end_paren = euler_str.find(')')
+
+                        if start_paren != -1 and end_paren != -1:
+                            euler_values_str = euler_str[start_paren + 1:end_paren]
+                            euler_values = euler_values_str.split()  # Split Euler values by spaces
+
+                            if len(euler_values) >= 2:  # Ensure we got at least two values
+                                try:
+                                    theta = float(euler_values[0])
+                                    phi = float(euler_values[1])
+                                    mulliken[atom_n]['euler'].append((theta, phi))
+                                except ValueError:
+                                    print(
+                                        f"Warning: Could not parse Euler angles from: '{euler_values_str}' in line: '{line.strip()}'")
+
+
+            except Exception as e:
+                print(f"Error processing line: '{line.strip()}'")
+                print(f"Exception: {e}")
+                continue
+        properties['mulliken'] = mulliken
 
     return properties, version
 

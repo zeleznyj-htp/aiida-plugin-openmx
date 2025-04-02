@@ -9,7 +9,7 @@ from aiida.engine import CalcJob
 from aiida.orm import SinglefileData, Dict, Int, Bool, to_aiida_type, List, FolderData, ArrayData
 from aiida.plugins import DataFactory
 
-from aiida_openmx.input.dict_to_file import write_mixed_output
+from aiida_openmx.input.dict_to_file import write_mixed_output, dict_lowercase
 from aiida_openmx.input.flat import replace_dots
 from aiida_openmx.input.structure import get_valence_split
 from aiida_openmx.input.jx_input import write_jx_input
@@ -29,6 +29,7 @@ class OpenMX(CalcJob):
                         in the format of keyword: value.
     :param precision: Integer that controls the size of the basis. 1 is smallest, 3 is the largest.
     :param spin_splits: A list of initial spin-polarizations for each atom.
+    :param non_collinear_constraint: Int or [Int], controls whethere the non-collinear constraint is applied
     :param bands.critical_points: Dict defining The points in reciprocal space that define the paths in the k-space.
         Example:
             {
@@ -48,6 +49,8 @@ class OpenMX(CalcJob):
     :param bands.unit_cell: 3x3 Array. Definition of the reciprocal unit cell. IF not present then the recirpocal cell
         corresponding to the lattice unit vectors is used.
 
+    When 'scf.spinpolarization' is set to 'NC' then the magnetic moments are read from the structure site property 'magmom'.
+
     Parameters can contain any openmx keywords with the following exceptions:
 
     - System.CurrrentDir, System.Name, Atoms.SpeciesAndCoordinates.Unit:
@@ -60,7 +63,7 @@ class OpenMX(CalcJob):
 
     If parameter starts with <, then the value will be put into new line and closed with >parameter. So for example:
 
-    
+
 
     """
 
@@ -87,6 +90,10 @@ class OpenMX(CalcJob):
                     serializer=to_aiida_type,
                     validator=spin_split_validator,
                     required=False)
+        spec.input("non_collinear_constraint", valid_type=(Int,List), default=lambda: Int(0),
+                   serializer=to_aiida_type,
+                   help="Can be 1 or 0 or a list of 1s or 0s. Controls which atoms have constrained directions in"
+                   "non-collinear calculations.")
         spec.input("plusU_orbital", valid_type=(Bool,List) , default=lambda: Bool(False),
                    help="Controls whether to use the on switch to find orbital polarization with DFT+U."
                         "Can be either boolean or a list of booleans, which then controls this switch for every atom.",
@@ -163,9 +170,19 @@ class OpenMX(CalcJob):
         else:
             plusU_orbital = self.inputs.plusU_orbital.get_list()
 
-
-
         parameters = self.inputs.parameters.get_dict()
+
+        parameters_lower = dict_lowercase(parameters)
+
+        if 'scf\\spinpolarization' in parameters_lower and parameters_lower['scf\\spinpolarization'] == 'nc':
+            non_collinear = True
+        else:
+            non_collinear = False
+
+        if isinstance(self.inputs.non_collinear_constraint,Int):
+            non_collinear_constraint = self.inputs.non_collinear_constraint.value
+        else:
+            non_collinear_constraint = self.inputs.non_collinear_constraint.get_list()
 
         write_mixed_output(input_filename,
                            folder,
@@ -173,6 +190,8 @@ class OpenMX(CalcJob):
                            self.inputs.structure.get_dict(),
                            self.inputs.precision.value,
                            spin_splits,
+                           non_collinear,
+                           non_collinear_constraint,
                            self.inputs.code.filepath_executable,
                            self.inputs.bands.n_band.value,
                            critical_points,
@@ -317,8 +336,12 @@ def define_ij_pairs(pairs,nns):
         i = pair[0]
         j = pair[1]
         ij_done = []
+        if isinstance(pair[2],int):
+            order = [pair[2]]
+        else:
+            order = pair[2]
         for nn in nns[i]:
-            if nn[0] == j and nn[3] in pair[2]:
+            if nn[0] == j and nn[3] in order:
                 if nn[3] not in ij_done:
                     out.append((i+1,j+1,*nn[1]))
                     ij_done.append(nn[3])

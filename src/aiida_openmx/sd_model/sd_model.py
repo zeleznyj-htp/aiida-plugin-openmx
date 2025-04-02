@@ -76,7 +76,7 @@ def input_from_pymatgen(struct,output=None,nns=1,t=-1,J=1.7,nn_scaling=2):
     config['tb']['exchange'] = str(J)
 
     moms = '\n'
-    for mom in struct.site_properties['magmom']:
+    for mom in np.array(struct.site_properties['magmom']):
         moms += np.array2string(mom).replace('[','').replace(']','') + '\n'
     config['tb']['mag_moms'] = moms
     

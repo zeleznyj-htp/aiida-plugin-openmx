@@ -1,4 +1,5 @@
 from aiida_openmx.input.flat import replace_backslash
+from aiida_openmx.input.dict_to_file import convert_to_string
 
 def write_jx_input(filename,folder,parameters,ij_pairs):
 
@@ -9,7 +10,7 @@ def write_jx_input(filename,folder,parameters,ij_pairs):
     with folder.open(filename, 'w') as handle:
         for key in parameters:
             value = parameters[key]
-            handle.write(f"{key:<35} {value:<35}\n")
+            handle.write(f"{key:<35} {convert_to_string(value):<35}\n")
 
         handle.write('<ijpairs.cellid\n')
         for ij in ij_pairs:
