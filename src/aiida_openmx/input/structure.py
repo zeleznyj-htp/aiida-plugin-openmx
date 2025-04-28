@@ -57,7 +57,7 @@ def atom_spec_coord(structure, spin_split=None, non_collinear=False, non_colline
 
     valence_split = get_valence_split(structure, spin_split)
 
-    nc_string = [''] * 5
+    nc_string = [''] * len(structure['sites'])
     if non_collinear:
         for i,site in enumerate((structure['sites'])):
             mom = site['properties']['magmom']

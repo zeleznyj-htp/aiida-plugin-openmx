@@ -47,9 +47,13 @@ Source = "https://github.com/parizekv/aiida-openmx"
 "openmx" = "aiida_openmx.calculations:OpenMX"
 "jx" = "aiida_openmx.calculations:JxCalculation"
 
+[project.entry-points."aiida.workflows"]
+"openmx.workchain" = "aiida_openmx.calculations:OpenMXWorkchain"
+
 [project.entry-points."aiida.parsers"]
 "openmx" = "aiida_openmx.parsers:OpenMXParser"
 "jx" = "aiida_openmx.parsers:JxParser"
+"openmx.workchain" = "aiida_openmx.parsers:OpenMXParser"
 
 [project.entry-points."aiida.cmdline.data"]
 "openmx" = "aiida_openmx.cli:data_cli"

@@ -3,22 +3,24 @@ Calculations provided by aiida_openmx.
 
 Register calculations via the "aiida.calculations" entry point in setup.json.
 """
-from aiida.common import datastructures
+from aiida.common import datastructures, AttributeDict
 from aiida.common.folders import Folder
-from aiida.engine import CalcJob
-from aiida.orm import SinglefileData, Dict, Int, Bool, to_aiida_type, List, FolderData, ArrayData
-from aiida.plugins import DataFactory
+from aiida.engine import CalcJob, WorkChain, ToContext, if_, ProcessSpec
+from aiida.orm import SinglefileData, Dict, Int, Bool, to_aiida_type, List, FolderData, ArrayData, Code
+from aiida.plugins import DataFactory, CalculationFactory
 
 from aiida_openmx.input.dict_to_file import write_mixed_output, dict_lowercase
 from aiida_openmx.input.flat import replace_dots
 from aiida_openmx.input.structure import get_valence_split
 from aiida_openmx.input.jx_input import write_jx_input
+from aiida_openmx.input.symmetrize_structure import structure_from_output
 
 from aiida_openmx.sd_model.sd_model import Model, input_from_pymatgen
 from pymatgen.core import Structure
 
 import numbers
 import re
+
 
 class OpenMX(CalcJob):
     """
@@ -364,3 +366,185 @@ def scfout_validator(scfout,port):
         scfouts = [x for x in file_names if 'scfout' in x]
         if len(scfouts) != 1:
             return 'the scfout folder must contain exactly one scfout file'
+
+def safe_assign(builder, name, value, serializer=None):
+    if serializer and isinstance(value, dict):
+        setattr(builder, name, serializer(value))
+    else:
+        setattr(builder, name, value)
+
+class OpenMXWorkchain(WorkChain):
+    """
+    A Workchain that runs an OpenMX calculation, then uses its output to run another
+    OpenMX calculation with optionally updated parameters.
+    """
+
+    @classmethod
+    def define(cls, spec: ProcessSpec):
+        super().define(spec)
+
+        # Inputs for the first calculation
+        # Metadata
+        spec.input('code', valid_type=Code)
+        spec.input('metadata1', valid_type=Dict, serializer=dict_dot_serializer)
+        #spec.input("metadata.options.output_filename", valid_type=str, default="openmx.std")
+        spec.input("structure", valid_type=Dict, help="Structure of the material",
+                   serializer=to_aiida_type)
+        spec.input("parameters", valid_type=Dict, help="Parameters of the calculation",
+                   serializer=dict_dot_serializer)
+        spec.input("precision", valid_type=Int, default=lambda: Int(2),
+                   help="Controls the size of the basis, 1 is the smallest and 3 the largest.",
+                   serializer=to_aiida_type)
+        spec.input("spin_splits", valid_type=List, default=None,
+                   help="The initial spin-polarization for each atom.",
+                   serializer=to_aiida_type,
+                   validator=spin_split_validator,
+                   required=False)
+        spec.input("non_collinear_constraint", valid_type=(Int, List), default=lambda: Int(0),
+                   serializer=to_aiida_type,
+                   help="Can be 1 or 0 or a list of 1s or 0s. Controls which atoms have constrained directions in"
+                        "non-collinear calculations.")
+        spec.input("plusU_orbital", valid_type=(Bool, List), default=lambda: Bool(False),
+                   help="Controls whether to use the on switch to find orbital polarization with DFT+U."
+                        "Can be either boolean or a list of booleans, which then controls this switch for every atom.",
+                   serializer=to_aiida_type,
+                   )
+        spec.input("retrieve_rst", valid_type=Bool, default=lambda: Bool(False),
+                   help="Controls whether the _rst files are downloaded, which allow for continuing the calculation.",
+                   serializer=to_aiida_type)
+        spec.input("rst_files", valid_type=FolderData, required=False, default=None,
+                   help="Folder containing the rst files needed to restart OpenMX calculation.")
+
+        # Bands namespace
+        spec.input_namespace('bands')
+        spec.input("bands.critical_points", valid_type=Dict, default=None,
+                   help="The coordinates of th critical points",
+                   serializer=to_aiida_type,
+                   required=False)
+        spec.input("bands.k_path", valid_type=List, default=None,
+                   help="The path defined by the critical points",
+                   serializer=to_aiida_type,
+                   required=False)
+        spec.input("bands.n_band", valid_type=Int, default=lambda: Int(15),
+                   help="Number of plotted points between two critical points in the band plot",
+                   serializer=to_aiida_type)
+        spec.input("bands.unit_cell", valid_type=ArrayData, default=None,
+                   help="The reciprocal unit cell with respect to which the critical points are defined."
+                        "If not present, openmx will use by default the unit cell corresponding to the lattice unit cell.",
+                   serializer=to_aiida_type,
+                   required=False)
+
+        # Control logic
+        spec.input("modify_for_second", valid_type=Bool, default=lambda: Bool(False), serializer=to_aiida_type)
+        spec.input("override_inputs", valid_type=Dict, serializer=dict_dot_serializer, help="Input overrides for the second calculation")
+        spec.output("output_file1", valid_type=SinglefileData, help="output_file")
+        spec.output("properties1", valid_type=Dict, help="Output properties of the calculation")
+        spec.output("calculation_info1", valid_type=Dict, help="Shows versions of the software used to run the calculation.")
+        spec.output("output_file2", valid_type=SinglefileData, help="output_file")
+        spec.output("properties2", valid_type=Dict, help="Output properties of the calculation")
+        spec.output("calculation_info2", valid_type=Dict, help="Shows versions of the software used to run the calculation.")
+
+        # Outline
+        spec.outline(
+            cls.run_first_calc,
+            cls.inspect_first,
+            if_(cls.should_run_second)(
+                cls.run_second_calc,
+                cls.inspect_second
+            ),
+            cls.finalize
+        )
+
+        # Exit codes
+        spec.exit_code(100, 'ERROR_FIRST_CALC_FAILED', message='The first OpenMX calculation failed.')
+        spec.exit_code(101, 'ERROR_SECOND_CALC_FAILED', message='The second OpenMX calculation failed.')
+
+    def build_openmx_inputs(self, override_inputs=None):
+        inputs = AttributeDict({
+            'structure': self.inputs.structure,
+            'parameters': self.inputs.parameters,
+            'precision': self.inputs.precision,
+            'metadata': dict(self.inputs.metadata1),
+            'code': self.inputs.code,
+            'retrieve_rst': self.inputs.retrieve_rst,
+        })
+
+        optional_inputs = ['spin_splits', 'non_collinear_constraint', 'plusU_orbital', 'rst_files']
+        for key in optional_inputs:
+            if key in self.inputs:
+                inputs[key] = self.inputs[key]
+
+        inputs['bands'] = AttributeDict()
+        for key in ['critical_points', 'k_path', 'n_band', 'unit_cell']:
+            if key in self.inputs.bands:
+                inputs['bands'][key] = self.inputs.bands[key]
+
+        # Apply clean overrides
+        if override_inputs:
+            data = override_inputs.get_dict()
+
+            # Override parameters
+            if 'parameters' in data:
+                param_dict = inputs['parameters'].get_dict()
+                param_dict.update(data['parameters'])
+                inputs['parameters'] = dict_dot_serializer(param_dict)
+
+            # Override bands
+            if 'bands' in data:
+                for k, v in data['bands'].items():
+                    inputs['bands'][k] = v
+
+            # Override any top-level simple keys
+            for key in ['precision', 'retrieve_rst', 'spin_splits', 'non_collinear_constraint', 'plusU_orbital']:
+                if key in data:
+                    inputs[key] = data[key]
+
+        return inputs
+
+    def run_first_calc(self):
+        self.report('Running first OpenMX calculation...')
+        inputs = self.build_openmx_inputs()
+        future = self.submit(OpenMX, **inputs)
+        return ToContext(first_calc=future)
+
+    def inspect_first(self):
+        if not self.ctx.first_calc.is_finished_ok:
+            self.report('First OpenMX calculation failed.')
+            return self.exit_codes.ERROR_FIRST_CALC_FAILED
+        self.report('First OpenMX calculation finished successfully.')
+
+    def should_run_second(self):
+        return self.inputs.modify_for_second
+
+    def run_second_calc(self):
+        self.report('Preparing second OpenMX calculation with modified parameters...')
+
+        # Read the aiida.out content
+        with self.ctx.first_calc.outputs.retrieved.open('aiida.out', "r") as handle:
+            output_text = handle.read()
+        # Extract the original structure (as dict)
+        original_structure_dict = self.inputs.structure.get_dict()
+
+        # Generate new structure using your existing function
+        structure = structure_from_output(output_text, original_structure_dict)  # returns a StructureData node
+
+        override_inputs = self.inputs.override_inputs if 'override_inputs' in self.inputs else {}
+        inputs = self.build_openmx_inputs(override_inputs=override_inputs)
+        inputs['structure'] = structure  # the AiiDA StructureData node
+        future = self.submit(OpenMX, **inputs)
+        return ToContext(second_calc=future)
+
+    def inspect_second(self):
+        if not self.ctx.second_calc.is_finished_ok:
+            self.report('Second OpenMX calculation failed.')
+            return self.exit_codes.ERROR_SECOND_CALC_FAILED
+        self.report('Second OpenMX calculation finished successfully.')
+
+    def finalize(self):
+        self.out('properties1', self.ctx.first_calc.outputs.properties)
+        self.out('output_file1', self.ctx.first_calc.outputs.output_file)
+        self.out('calculation_info1', self.ctx.first_calc.outputs.calculation_info)
+        if 'second_calc' in self.ctx and 'properties' in self.ctx.second_calc.outputs:
+            self.out('properties2', self.ctx.second_calc.outputs.properties)
+            self.out('output_file2', self.ctx.second_calc.outputs.output_file)
+            self.out('calculation_info2', self.ctx.second_calc.outputs.calculation_info)
