@@ -1,5 +1,6 @@
 import re
 from pymatgen.core import Structure, Lattice
+from aiida.orm import StructureData
 
 
 def parse_structure_update(text):
@@ -34,10 +35,10 @@ def parse_structure_update(text):
         parts = line.strip().split()
         coords = list(map(float, parts[2:5]))  # skip index and element
         new_frac_coords.append(coords)
-
     return new_frac_coords, lattice
 
-
+#expects structure dict
+#returns structure dict
 def update_structure_dict(structure_dict, new_frac_coords, new_lattice):
     # Update lattice info
     structure_dict['lattice']['matrix'] = new_lattice
@@ -50,7 +51,6 @@ def update_structure_dict(structure_dict, new_frac_coords, new_lattice):
     # Optional: recompute volume if needed (or let pymatgen do it after loading)
 
     # Update fractional coordinates and recalculate cartesian
-    from pymatgen.core import Lattice
     lattice = Lattice(new_lattice)
 
     for i, coord in enumerate(new_frac_coords):
@@ -60,7 +60,7 @@ def update_structure_dict(structure_dict, new_frac_coords, new_lattice):
 
     return structure_dict
 
-
+#expects pymatgen structure as input
 def make_tetragonal(structure):
     structure_dict = structure.as_dict()
     # Step 1: Extract original lattice
@@ -100,13 +100,9 @@ def make_tetragonal(structure):
     tetragonal_structure = update_structure_dict(structure_dict, new_frac_coords, new_lattice)
     return tetragonal_structure
 
-
+#input dict structure
+#returns pymatgen type structure
 def parse_and_change(text, structure):
-    # Step 1: Your text input (from external source)
-    #text = n.outputs.retrieved.get_object_content('aiida.out')
-    # Step 2: Your original structure dict
-    #structure_dict = structure.as_dict()
-    # Step 3: Apply update
     new_frac_coords, new_lattice = parse_structure_update(text)
     updated_dict = update_structure_dict(structure, new_frac_coords, new_lattice)
     new_structure = Structure.from_dict(updated_dict)
@@ -115,4 +111,9 @@ def parse_and_change(text, structure):
 
 def structure_from_output(text, structure):
     new_structure = parse_and_change(text, structure)
-    return make_tetragonal(new_structure)
+    pmg_structure = Structure.from_dict(make_tetragonal(new_structure)) #symmetrized pymatgen structure
+    # Create empty StructureData
+    symmetrized_structure = StructureData()
+    # Fill it using pymatgen structure
+    symmetrized_structure.set_pymatgen_structure(pmg_structure)
+    return symmetrized_structure

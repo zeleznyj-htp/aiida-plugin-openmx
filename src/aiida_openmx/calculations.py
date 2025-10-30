@@ -5,8 +5,8 @@ Register calculations via the "aiida.calculations" entry point in setup.json.
 """
 from aiida.common import datastructures, AttributeDict
 from aiida.common.folders import Folder
-from aiida.engine import CalcJob, WorkChain, ToContext, if_, ProcessSpec
-from aiida.orm import SinglefileData, Dict, Int, Bool, to_aiida_type, List, FolderData, ArrayData, Code
+from aiida.engine import CalcJob, WorkChain, ToContext, if_, ProcessSpec, while_
+from aiida.orm import SinglefileData, Dict, Int, Bool, to_aiida_type, List, FolderData, ArrayData, Code, StructureData, load_code, load_node, Group, Str
 from aiida.plugins import DataFactory, CalculationFactory
 
 from aiida_openmx.input.dict_to_file import write_mixed_output, dict_lowercase
@@ -14,12 +14,15 @@ from aiida_openmx.input.flat import replace_dots
 from aiida_openmx.input.structure import get_valence_split
 from aiida_openmx.input.jx_input import write_jx_input
 from aiida_openmx.input.symmetrize_structure import structure_from_output
+from aiida.plugins import WorkflowFactory
 
 from aiida_openmx.sd_model.sd_model import Model, input_from_pymatgen
 from pymatgen.core import Structure
 
 import numbers
 import re
+
+
 
 
 class OpenMX(CalcJob):
@@ -77,10 +80,11 @@ class OpenMX(CalcJob):
         # set default values for AiiDA options
         spec.input('metadata.options.resources', valid_type=dict,
                    default={'num_machines': 1, 'num_mpiprocs_per_machine': 1})
+        spec.input('metadata.options.max_wallclock_seconds', valid_type=int, default=172800)
         spec.input('metadata.options.parser_name', valid_type=str, default='openmx')
         # new ports
         spec.input("metadata.options.output_filename", valid_type=str, default="openmx.std")
-        spec.input("structure", valid_type=Dict, help="Structure of the material",
+        spec.input("structure", valid_type=StructureData, help="Structure of the material",
                    serializer=to_aiida_type)
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation",
                    serializer=dict_dot_serializer)
@@ -186,10 +190,16 @@ class OpenMX(CalcJob):
         else:
             non_collinear_constraint = self.inputs.non_collinear_constraint.get_list()
 
+        # Get pymatgen Structure
+        pmg_structure = self.inputs.structure.get_pymatgen_structure()
+
+        # Convert to dictionary
+        structure_dict = pmg_structure.as_dict()
+
         write_mixed_output(input_filename,
                            folder,
                            parameters,
-                           self.inputs.structure.get_dict(),
+                           structure_dict,
                            self.inputs.precision.value,
                            spin_splits,
                            non_collinear,
@@ -388,7 +398,7 @@ class OpenMXWorkchain(WorkChain):
         spec.input('code', valid_type=Code)
         spec.input('metadata1', valid_type=Dict, serializer=dict_dot_serializer)
         #spec.input("metadata.options.output_filename", valid_type=str, default="openmx.std")
-        spec.input("structure", valid_type=Dict, help="Structure of the material",
+        spec.input("structure", valid_type=StructureData, help="Structure of the material",
                    serializer=to_aiida_type)
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation",
                    serializer=dict_dot_serializer)
@@ -433,10 +443,9 @@ class OpenMXWorkchain(WorkChain):
                         "If not present, openmx will use by default the unit cell corresponding to the lattice unit cell.",
                    serializer=to_aiida_type,
                    required=False)
-
         # Control logic
         spec.input("modify_for_second", valid_type=Bool, default=lambda: Bool(False), serializer=to_aiida_type)
-        spec.input("override_inputs", valid_type=Dict, serializer=dict_dot_serializer, help="Input overrides for the second calculation")
+        spec.input("override_inputs", valid_type=Dict, serializer=dict_dot_serializer, help="Input overrides for the second calculation", required = False)
         spec.output("output_file1", valid_type=SinglefileData, help="output_file")
         spec.output("properties1", valid_type=Dict, help="Output properties of the calculation")
         spec.output("calculation_info1", valid_type=Dict, help="Shows versions of the software used to run the calculation.")
@@ -522,8 +531,11 @@ class OpenMXWorkchain(WorkChain):
         # Read the aiida.out content
         with self.ctx.first_calc.outputs.retrieved.open('aiida.out', "r") as handle:
             output_text = handle.read()
-        # Extract the original structure (as dict)
-        original_structure_dict = self.inputs.structure.get_dict()
+        # Extract the original structure (as dict) from StructureData input
+        pmg_structure = self.inputs.structure.get_pymatgen_structure()
+
+        # Convert to dictionary
+        original_structure_dict = pmg_structure.as_dict()
 
         # Generate new structure using your existing function
         structure = structure_from_output(output_text, original_structure_dict)  # returns a StructureData node
