@@ -152,14 +152,18 @@ def parse_std(lines):
         if 'Ver.' in line:
             version = line.split()[-1]
 
+    el_energy = []
     convergence = []
     for line in lines:
         if 'dUele' in line:
             try:
                 convergence.append(float(line.split('=')[2]))
+                el_energy.append(float(line.split('=')[1].split()[0]))
             except:
                 convergence.append(None)
+                el_energy.append(None)
     properties['convergence'] = convergence
+    properties["energy_ele"] = el_energy
 
     convergence_moment = []
     for line in lines:

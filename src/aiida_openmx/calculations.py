@@ -3,6 +3,7 @@ Calculations provided by aiida_openmx.
 
 Register calculations via the "aiida.calculations" entry point in setup.json.
 """
+from __future__ import annotations
 from aiida.common import datastructures, AttributeDict
 from aiida.common.folders import Folder
 from aiida.engine import CalcJob, WorkChain, ToContext, if_, ProcessSpec, while_
@@ -21,8 +22,6 @@ from pymatgen.core import Structure
 
 import numbers
 import re
-
-
 
 
 class OpenMX(CalcJob):
@@ -216,28 +215,14 @@ class OpenMX(CalcJob):
         calcinfo.local_copy_list = []
 
         if self.inputs.rst_files is not None:
-
-            #It seems it's not possible to use pattern matching in local_copy_list
-            file_names = self.inputs.rst_files.list_object_names()
-            rst_directory = None
-            for fname in file_names:
-                if re.match('.+_rst',fname) is not None:
-                    rst_directory = fname
-                    break
-
-            if rst_directory is None:
-                raise Exception('No rst_files present in the folder.')
-
-            calcinfo.local_copy_list.append((self.inputs.rst_files.uuid, rst_directory, '.'))
-
+            calcinfo.local_copy_list.append((self.inputs.rst_files.uuid, 'aiida_rst', 'aiida_rst'))
             if 'scf.restart' not in parameters:
                 parameters['scf.restart'] = 'on'
-
         calcinfo.retrieve_list = ['input_file','*.std','*.xyz','*.out','*.md','*.Band','*.Dos.*','*.scfout',
                                   self.metadata.options.output_filename]
+                                  
         if self.inputs.retrieve_rst:
-            calcinfo.retrieve_list.append(('*_rst/*','.',2))
-
+            calcinfo.retrieve_list.append(('aiida_rst/*','.',2))
         return calcinfo
 
 class JxCalculation(CalcJob):
@@ -387,6 +372,8 @@ class OpenMXWorkchain(WorkChain):
     """
     A Workchain that runs an OpenMX calculation, then uses its output to run another
     OpenMX calculation with optionally updated parameters.
+    The Workchain can be used to run a structure optimization calculation and subsequently use the output structure as input of the second calculation.
+    Furthermore you can specify for the second calculation to use the restart files of the first calculation.
     """
 
     @classmethod
@@ -444,7 +431,8 @@ class OpenMXWorkchain(WorkChain):
                    serializer=to_aiida_type,
                    required=False)
         # Control logic
-        spec.input("modify_for_second", valid_type=Bool, default=lambda: Bool(False), serializer=to_aiida_type)
+        spec.input("use_structure_from_first_calc", valid_type=Bool, required=False, default=lambda: Bool(False), serializer=to_aiida_type)
+        spec.input("use_restart_files_from_first_calc", valid_type=Bool, required=False, default=lambda: Bool(False), serializer=to_aiida_type)
         spec.input("override_inputs", valid_type=Dict, serializer=dict_dot_serializer, help="Input overrides for the second calculation", required = False)
         spec.output("output_file1", valid_type=SinglefileData, help="output_file")
         spec.output("properties1", valid_type=Dict, help="Output properties of the calculation")
@@ -457,10 +445,8 @@ class OpenMXWorkchain(WorkChain):
         spec.outline(
             cls.run_first_calc,
             cls.inspect_first,
-            if_(cls.should_run_second)(
-                cls.run_second_calc,
-                cls.inspect_second
-            ),
+            cls.run_second_calc,
+            cls.inspect_second,
             cls.finalize
         )
 
@@ -510,9 +496,13 @@ class OpenMXWorkchain(WorkChain):
 
         return inputs
 
+
+
     def run_first_calc(self):
         self.report('Running first OpenMX calculation...')
         inputs = self.build_openmx_inputs()
+        if self.inputs.use_restart_files_from_first_calc:
+            inputs['retrieve_rst'] = True
         future = self.submit(OpenMX, **inputs)
         return ToContext(first_calc=future)
 
@@ -522,27 +512,31 @@ class OpenMXWorkchain(WorkChain):
             return self.exit_codes.ERROR_FIRST_CALC_FAILED
         self.report('First OpenMX calculation finished successfully.')
 
-    def should_run_second(self):
-        return self.inputs.modify_for_second
-
     def run_second_calc(self):
         self.report('Preparing second OpenMX calculation with modified parameters...')
-
-        # Read the aiida.out content
-        with self.ctx.first_calc.outputs.retrieved.open('aiida.out', "r") as handle:
-            output_text = handle.read()
-        # Extract the original structure (as dict) from StructureData input
-        pmg_structure = self.inputs.structure.get_pymatgen_structure()
-
-        # Convert to dictionary
-        original_structure_dict = pmg_structure.as_dict()
-
-        # Generate new structure using your existing function
-        structure = structure_from_output(output_text, original_structure_dict)  # returns a StructureData node
-
         override_inputs = self.inputs.override_inputs if 'override_inputs' in self.inputs else {}
         inputs = self.build_openmx_inputs(override_inputs=override_inputs)
-        inputs['structure'] = structure  # the AiiDA StructureData node
+
+        if self.inputs.use_structure_from_first_calc:
+            # Read the aiida.out content
+            with self.ctx.first_calc.outputs.retrieved.open('aiida.out', "r") as handle:
+                output_text = handle.read()
+            # Extract the original structure (as dict) from StructureData input
+            pmg_structure = self.inputs.structure.get_pymatgen_structure()
+
+            # Convert to dictionary
+            original_structure_dict = pmg_structure.as_dict()
+
+            # Generate new structure using your existing function
+            structure = structure_from_output(output_text, original_structure_dict)  # returns a StructureData node
+            inputs['structure'] = structure  # the AiiDA StructureData node
+        
+        if self.inputs.use_restart_files_from_first_calc:
+            inputs['rst_files'] = self.ctx.first_calc.outputs.retrieved
+            # Get mutable dict from stored Dict node, modify it, and create a new Dict node
+            params = inputs['parameters'].get_dict()
+            params['scf.restart'] = 'on'
+            inputs['parameters'] = dict_dot_serializer(params)
         future = self.submit(OpenMX, **inputs)
         return ToContext(second_calc=future)
 
