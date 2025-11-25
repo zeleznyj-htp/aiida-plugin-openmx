@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from aiida_openmx import data
 from pymatgen.core import Structure
+import re
 
 def get_elements(structure):
     elements = set()
@@ -72,3 +73,89 @@ def band_kpath_unit_cell(unit_cell):
         string += '\n'
     string += "Band.KPath.UnitCell>\n"
     return string
+
+def get_elements_order(structure):
+    return [
+        site["species"][0]["element"]
+        for site in structure["sites"]
+    ]
+
+def unique_preserve_order(seq):
+    seen = set()
+    out = []
+    for x in seq:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+
+def basis_to_hubbard_line(basis_label, element, U_specs=None):
+    """
+    Convert a basis label like 'Ni6.0S-s2p2d2f1' into one Hubbard.U line.
+
+    Parameters
+    ----------
+    basis_label : str
+        Example: "Ni6.0S-s2p2d2f1"
+    element : str
+        Example: "Ni"
+    U_specs : dict[str, dict[int, float]] or None
+        Mapping orbital -> {n -> U_value}, e.g.
+        {"d": {1: 5.0}} means: 1d gets U=5.0, everything else 0.0.
+        If None, all U = 0.0.
+
+    Returns
+    -------
+    str
+        Example: "Ni 1s 0.0 2s 0.0 1p 0.0 2p 0.0 1d 5.0 2d 0.0 1f 0.0"
+    """
+    if U_specs is None:
+        U_specs = {}
+
+    # Extract the part after the first dash: "s2p2d2f1"
+    try:
+        basis = basis_label.split("-")[1]
+    except IndexError:
+        raise ValueError(f"Invalid basis label: {basis_label}")
+
+    # Parse e.g. s2 p2 d2 f1
+    matches = re.findall(r"([spdf])(\d+)", basis)
+    if not matches:
+        raise ValueError(f"No orbitals found in basis label: {basis_label}")
+
+    shells = []
+    for orb, count_str in matches:
+        count = int(count_str)
+        for n in range(1, count + 1):
+            U = U_specs.get(orb, {}).get(n, 0.0)
+            shells.append(f"{n}{orb} {U:.1f}")
+
+    return f"{element} " + " ".join(shells)
+
+def generate_hubbard_block(structure, q, hubbard_map):
+    """
+    Generate <Hubbard.U.values> block in the order elements appear,
+    but only once per element.
+    """
+
+    # Full site order (with duplicates)
+    elements_full = get_elements_order(structure)
+
+    # Unique elements in first-appearance order
+    elements = unique_preserve_order(elements_full)
+
+    # Get basis strings for these elements
+    basis_list = pseudo_basis_names(elements, q)
+
+    lines = []
+    for elem, basis in zip(elements, basis_list):
+        U_specs = hubbard_map.get(elem, {})
+        line = basis_to_hubbard_line(basis, elem, U_specs)
+        lines.append("  " + line)
+
+    block = "<Hubbard.U.values   # eV\n"
+    block += "\n".join(lines) + "\n"
+    block += "Hubbard.U.values>"
+
+    return block
+

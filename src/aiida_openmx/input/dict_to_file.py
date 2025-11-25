@@ -1,6 +1,6 @@
 from aiida.common import InputValidationError
 from aiida_openmx.input.structure import atom_spec_coord, atom_unit_vectors
-from aiida_openmx.input.definition_of_atomic_species import atomic_species, get_elements, band_path, band_kpath_unit_cell
+from aiida_openmx.input.definition_of_atomic_species import atomic_species, get_elements, generate_hubbard_block, band_path, band_kpath_unit_cell
 from aiida_openmx.input.flat import replace_backslash
 
 import numpy as np
@@ -48,7 +48,7 @@ def convert_to_string(value):
 
 def write_mixed_output(input_file, folder, data_backslash, structure, precision, spin_split=None,
                        non_collinear = False, non_collinear_constraint = 1, executable_path=None,
-                       n_bands = None, critical_points = None, k_path = None, unit_cell=None, plusU_orbital=False):
+                       n_bands = None, critical_points = None, k_path = None, unit_cell=None, plusU_orbital=None, hubbard_orbital_map=None):
     """
     Write key-value pairs and structure elements based on the specified sequence.
     """
@@ -60,6 +60,10 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
     structure_string = {'Definition.of.Atomic.Species': atomic_species(structure, precision),
                         'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, spin_split, non_collinear, non_collinear_constraint, plusU_orbital),
                         'Atoms.UnitVectors': atom_unit_vectors(structure)}
+
+    if ('scf.Hubbard.U' in data) and (data['scf.Hubbard.U'] in ['on','On','ON']):
+            structure_string['Hubbard.U.values'] = generate_hubbard_block(structure, precision, hubbard_orbital_map)
+
     with folder.open(input_file, 'w') as handle:
         for item in structure_string:
             # Write the corresponding structure item

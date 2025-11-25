@@ -126,6 +126,8 @@ class OpenMX(CalcJob):
                         "If not present, openmx will use by default the unit cell corresponding to the lattice unit cell.",
                    serializer=to_aiida_type,
                    required=False)
+        spec.input("hubbard_orbital_map", valid_type=Dict, default=None, help="The Hubbard U values corresponding to individual orbitals on atoms",
+                    serializer=to_aiida_type, required=False)
         spec.output("output_file", valid_type=SinglefileData, help="output_file")
         spec.output("properties", valid_type=Dict, help="Output properties of the calculation")
         spec.output("calculation_info", valid_type=Dict, help="Shows versions of the software used to run the calculation.")
@@ -175,6 +177,12 @@ class OpenMX(CalcJob):
         else:
             plusU_orbital = self.inputs.plusU_orbital.get_list()
 
+
+        if self.inputs.hubbard_orbital_map is None:
+            hubbard_orbital_map = None
+        else:
+            hubbard_orbital_map = self.inputs.hubbard_orbital_map
+
         parameters = self.inputs.parameters.get_dict()
 
         parameters_lower = dict_lowercase(parameters)
@@ -208,7 +216,8 @@ class OpenMX(CalcJob):
                            critical_points,
                            k_path,
                            unit_cell,
-                           plusU_orbital)
+                           plusU_orbital,
+                           hubbard_orbital_map)
         # Prepare a `CalcInfo` to be returned to the engine
         calcinfo = datastructures.CalcInfo()
         calcinfo.codes_info = [codeinfo]
@@ -406,6 +415,8 @@ class OpenMXWorkchain(WorkChain):
                         "Can be either boolean or a list of booleans, which then controls this switch for every atom.",
                    serializer=to_aiida_type,
                    )
+        spec.input("hubbard_orbital_map", valid_type=Dict, default=None, help="The Hubbard U values corresponding to individual orbitals on atoms",
+                    serializer=to_aiida_type, required=False)
         spec.input("retrieve_rst", valid_type=Bool, default=lambda: Bool(False),
                    help="Controls whether the _rst files are downloaded, which allow for continuing the calculation.",
                    serializer=to_aiida_type)
@@ -473,6 +484,9 @@ class OpenMXWorkchain(WorkChain):
         for key in ['critical_points', 'k_path', 'n_band', 'unit_cell']:
             if key in self.inputs.bands:
                 inputs['bands'][key] = self.inputs.bands[key]
+
+        if self.inputs.hubbard_orbital_map is not None:
+            inputs['hubbard_orbital_map'] = self.inputs.hubbard_orbital_map
 
         # Apply clean overrides
         if override_inputs:
