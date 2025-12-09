@@ -83,7 +83,7 @@ class OpenMX(CalcJob):
         spec.input('metadata.options.parser_name', valid_type=str, default='openmx')
         # new ports
         spec.input("metadata.options.output_filename", valid_type=str, default="openmx.std")
-        spec.input("structure", valid_type=StructureData, help="Structure of the material",
+        spec.input("structure", valid_type=(StructureData,Dict), help="Structure of the material",
                    serializer=to_aiida_type)
         spec.input("parameters", valid_type=Dict, help="Parameters of the calculation",
                    serializer=dict_dot_serializer)
@@ -197,11 +197,14 @@ class OpenMX(CalcJob):
         else:
             non_collinear_constraint = self.inputs.non_collinear_constraint.get_list()
 
-        # Get pymatgen Structure
-        pmg_structure = self.inputs.structure.get_pymatgen_structure()
+        if isinstance(self.inputs.structure, StructureData):
+            # Get pymatgen Structure
+            pmg_structure = self.inputs.structure.get_pymatgen_structure()
 
-        # Convert to dictionary
-        structure_dict = pmg_structure.as_dict()
+            # Convert to dictionary
+            structure_dict = pmg_structure.as_dict()
+        else:
+            structure_dict = self.inputs.structure.get_dict()
 
         write_mixed_output(input_filename,
                            folder,

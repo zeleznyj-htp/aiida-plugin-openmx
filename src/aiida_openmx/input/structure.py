@@ -61,9 +61,13 @@ def atom_spec_coord(structure, spin_split=None, non_collinear=False, non_colline
     if non_collinear:
         for i,site in enumerate((structure['sites'])):
             mom = site['properties']['magmom']
-            theta, phi = cartesian2spherical(*mom)
-            theta = theta * 180 / np.pi
-            phi = phi * 180 / np.pi
+            if abs(np.linalg.norm(mom) ) < 1e-5:
+                theta = 0
+                phi = 0
+            else:
+                theta, phi = cartesian2spherical(*mom)
+                theta = theta * 180 / np.pi
+                phi = phi * 180 / np.pi
             nc_string[i] += f"{theta:.4f} "
             nc_string[i] += f"{phi:.4f} "
             nc_string[i] += f"{theta:.4f} "
