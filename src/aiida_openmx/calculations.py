@@ -148,7 +148,11 @@ class OpenMX(CalcJob):
         """
         input_filename = "input_file"
         codeinfo = datastructures.CodeInfo()
-        codeinfo.cmdline_params = [input_filename]
+        cmdline_params = [input_filename]
+        if 'num_cores_per_mpiproc'in self.inputs.metadata.options.resources:
+            cmdline_params.append('-nt')
+            cmdline_params.append(self.inputs.metadata.options.resources['num_cores_per_mpiproc'])
+        codeinfo.cmdline_params = cmdline_params
         codeinfo.code_uuid = self.inputs.code.uuid
         codeinfo.stdout_name = self.metadata.options.output_filename
 
