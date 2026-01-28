@@ -61,8 +61,18 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
                         'Atoms.SpeciesAndCoordinates': atom_spec_coord(structure, spin_split, non_collinear, non_collinear_constraint, plusU_orbital),
                         'Atoms.UnitVectors': atom_unit_vectors(structure)}
 
-    if ('scf.Hubbard.U' in data) and (data['scf.Hubbard.U'] in ['on','On','ON']):
-            structure_string['Hubbard.U.values'] = generate_hubbard_block(structure, precision, hubbard_orbital_map)
+    if ('scf.Hubbard.U' in data) and (data['scf.Hubbard.U'].lower() == 'on'):
+        if hubbard_orbital_map is None:
+            raise ValueError("hubbard_orbital_map must not be None when Hubbard U is enabled.")
+        if not isinstance(hubbard_orbital_map, dict):
+            raise TypeError(f"hubbard_orbital_map must be a dictionary, got {type(hubbard_orbital_map)}")
+
+        structure_string['Hubbard.U.values'] = generate_hubbard_block(
+            structure,
+            precision,
+            hubbard_orbital_map
+    )
+
 
     with folder.open(input_file, 'w') as handle:
         for item in structure_string:
@@ -106,3 +116,14 @@ def write_mixed_output(input_file, folder, data_backslash, structure, precision,
             if unit_cell is not None:
                 handle.write(band_kpath_unit_cell(unit_cell))
             handle.write(band_path(n_bands, critical_points, k_path))
+
+        if ('Dos.fileout' in data) and (data['Dos.fileout'].lower() == 'on'):
+            handle.write(f"{'Dos.fileout':<35} {'on':<35}\n")
+            if 'Dos.Erange' in data:
+                erange = data['Dos.Erange']
+                if isinstance(erange, list) and len(erange) == 2:
+                    handle.write(f"{'Dos.Erange':<35} {erange[0]:.1f}  {erange[1]:.1f}\n")
+            if 'Dos.Kgrid' in data:
+                kgrid = data['Dos.Kgrid']
+                if isinstance(kgrid, list) and len(kgrid) == 3:
+                    handle.write(f"{'Dos.Kgrid':<35} {kgrid[0]} {kgrid[1]} {kgrid[2]}\n")

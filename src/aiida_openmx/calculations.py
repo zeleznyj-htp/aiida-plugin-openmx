@@ -44,6 +44,7 @@ class OpenMX(CalcJob):
             }
     :param plusU_orbital: Bool or [Bool], specifies whether the yes switch should be used for DFT+U which is used to get
         a state with orbital polarization. If it's a list then this specifies it for each atom.
+    :param hubbard_orbital_map: Dict, specifies the Hubbard U values corresponding each orbital of every specie of atoms.
     :param retrieve_rst: Bool that controls whether the _rst files are retrieved.
     :param rst_files: Folder containing the _rst files used for restarting the calculation.
     :param bands.k_path: A List of list containg the paths along which the bands are calculated using the defintion of
@@ -185,7 +186,7 @@ class OpenMX(CalcJob):
         if self.inputs.hubbard_orbital_map is None:
             hubbard_orbital_map = None
         else:
-            hubbard_orbital_map = self.inputs.hubbard_orbital_map
+            hubbard_orbital_map = self.inputs.hubbard_orbital_map.get_dict()
 
         parameters = self.inputs.parameters.get_dict()
 
