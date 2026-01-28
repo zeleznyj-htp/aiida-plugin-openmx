@@ -10,7 +10,7 @@ def get_elements(structure):
     elements = set()
     for i in range(len(structure['sites'])):
         elements.add(structure['sites'][i]['species'][0]['element'])
-    return list(elements)
+    return sorted(list(elements))
 
 def pseudopotentials_filenames(elements):
     weird = ['Fe','Co','Ni','Cu','Zn']
