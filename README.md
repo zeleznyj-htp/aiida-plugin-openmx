@@ -9,7 +9,7 @@ This plugin provides the following AiiDA components for interacting with OpenMX:
 ### Calculations
 
 * **`OpenMX`**: A calculation plugin for running standard OpenMX DFT calculations. It supports various features including:
-  * Structure input via AiiDA `StructureData` or `Dict`.
+  * Structure input via AiiDA `StructureData` or pymatgen `Structure`.
   * OpenMX parameters provided as a nested dictionary (`Dict`).
   * Collinear and non-collinear spin-polarization (`spin_splits`, `non_collinear_constraint`).
   * Band structure calculations along high-symmetry paths (`bands.critical_points`, `bands.k_path`, `bands.n_band`, `bands.unit_cell`).
