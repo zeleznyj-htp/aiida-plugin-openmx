@@ -149,18 +149,6 @@ The AiiDA parsers for this plugin automatically extract useful data from the sta
   - `pairs`: A list of tuples defining the interacting pairs `(i, j, Rx, Ry, Rz)`.
   - `Js`: A list of the calculated exchange coupling constants $J$ corresponding to each pair.
 
-## Development
-
-```shell
-git clone https://github.com/parizekv/aiida-openmx .
-cd aiida-openmx
-pip install --upgrade pip
-pip install -e .[pre-commit,testing]  # install extra dependencies
-pre-commit install  # install pre-commit hooks
-pytest -v  # discover and run all tests
-```
-
-See the [developer guide](http://aiida-openmx.readthedocs.io/en/latest/developer_guide/index.html) for more information.
 
 ## License
 
