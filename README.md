@@ -1,102 +1,153 @@
-[![Build Status][ci-badge]][ci-link]
-[![Coverage Status][cov-badge]][cov-link]
-[![Docs status][docs-badge]][docs-link]
-[![PyPI version][pypi-badge]][pypi-link]
-
 # aiida-openmx
 
-AiiDa plugin for the DFT code openmx.
-
-This plugin is the default output of the
-[AiiDA plugin cutter](https://github.com/aiidateam/aiida-plugin-cutter),
-intended to help developers get started with their AiiDA plugins.
-
-## Repository contents
-
-* [`.github/`](.github/): [Github Actions](https://github.com/features/actions) configuration
-  * [`ci.yml`](.github/workflows/ci.yml): runs tests, checks test coverage and builds documentation at every new commit
-  * [`publish-on-pypi.yml`](.github/workflows/publish-on-pypi.yml): automatically deploy git tags to PyPI - just generate a [PyPI API token](https://pypi.org/help/#apitoken) for your PyPI account and add it to the `pypi_token` secret of your github repository
-* [`aiida_openmx/`](aiida_openmx/): The main source code of the plugin package
-  * [`data/`](aiida_openmx/data/): A new `DiffParameters` data class, used as input to the `DiffCalculation` `CalcJob` class
-  * [`calculations.py`](aiida_openmx/calculations.py): A new `DiffCalculation` `CalcJob` class
-  * [`cli.py`](aiida_openmx/cli.py): Extensions of the `verdi data` command line interface for the `DiffParameters` class
-  * [`helpers.py`](aiida_openmx/helpers.py): Helpers for setting up an AiiDA code for `diff` automatically
-  * [`parsers.py`](aiida_openmx/parsers.py): A new `Parser` for the `DiffCalculation`
-* [`docs/`](docs/): A documentation template ready for publication on [Read the Docs](http://aiida-diff.readthedocs.io/en/latest/)
-* [`examples/`](examples/): An example of how to submit a calculation using this plugin
-* [`tests/`](tests/): Basic regression tests using the [pytest](https://docs.pytest.org/en/latest/) framework (submitting a calculation, ...). Install `pip install -e .[testing]` and run `pytest`.
-* [`.gitignore`](.gitignore): Telling git which files to ignore
-* [`.pre-commit-config.yaml`](.pre-commit-config.yaml): Configuration of [pre-commit hooks](https://pre-commit.com/) that sanitize coding style and check for syntax errors. Enable via `pip install -e .[pre-commit] && pre-commit install`
-* [`.readthedocs.yml`](.readthedocs.yml): Configuration of documentation build for [Read the Docs](https://readthedocs.org/)
-* [`LICENSE`](LICENSE): License for your plugin
-* [`README.md`](README.md): This file
-* [`conftest.py`](conftest.py): Configuration of fixtures for [pytest](https://docs.pytest.org/en/latest/)
-* [`pyproject.toml`](setup.json): Python package metadata for registration on [PyPI](https://pypi.org/) and the [AiiDA plugin registry](https://aiidateam.github.io/aiida-registry/) (including entry points)
-
-See also the following video sequences from the 2019-05 AiiDA tutorial:
-
- * [run aiida-diff example calculation](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=403s)
- * [aiida-diff CalcJob plugin](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=685s)
- * [aiida-diff Parser plugin](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=936s)
- * [aiida-diff computer/code helpers](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=1238s)
- * [aiida-diff input data (with validation)](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=1353s)
- * [aiida-diff cli](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=1621s)
- * [aiida-diff tests](https://www.youtube.com/watch?v=2CxiuiA1uVs&t=1931s)
- * [Adding your plugin to the registry](https://www.youtube.com/watch?v=760O2lDB-TM&t=112s)
- * [pre-commit hooks](https://www.youtube.com/watch?v=760O2lDB-TM&t=333s)
-
-For more information, see the [developer guide](https://aiida-diff.readthedocs.io/en/latest/developer_guide) of your plugin.
-
+AiiDA plugin for the [OpenMX](http://www.openmx-square.org/) DFT code.
 
 ## Features
 
- * Add input files using `SinglefileData`:
-   ```python
-   SinglefileData = DataFactory('core.singlefile')
-   inputs['file1'] = SinglefileData(file='/path/to/file1')
-   inputs['file2'] = SinglefileData(file='/path/to/file2')
-   ```
+This plugin provides the following AiiDA components for interacting with OpenMX:
 
- * Specify command line options via a python dictionary and `DiffParameters`:
-   ```python
-   d = { 'ignore-case': True }
-   DiffParameters = DataFactory('openmx')
-   inputs['parameters_init'] = DiffParameters(dict=d)
-   ```
+### Calculations
 
- * `DiffParameters` dictionaries are validated using [voluptuous](https://github.com/alecthomas/voluptuous).
-   Find out about supported options:
-   ```python
-   DiffParameters = DataFactory('openmx')
-   print(DiffParameters.schema.schema)
-   ```
+* **`OpenMX`**: A calculation plugin for running standard OpenMX DFT calculations. It supports various features including:
+  * Structure input via AiiDA `StructureData` or `Dict`.
+  * OpenMX parameters provided as a nested dictionary (`Dict`).
+  * Collinear and non-collinear spin-polarization (`spin_splits`, `non_collinear_constraint`).
+  * Band structure calculations along high-symmetry paths (`bands.critical_points`, `bands.k_path`, `bands.n_band`, `bands.unit_cell`).
+  * DFT+U with orbital polarization (`plusU_orbital`, `hubbard_orbital_map`).
+  * Restarting calculations from previous states (`retrieve_rst`, `rst_files`).
+
+* **`JxCalculation`**: A calculation plugin for calculating exchange constants (J) from an OpenMX calculation using the `jx` code. 
+  * Note: works for collinear calculations only.
+  * Requires a spin-polarized calculation and setting `'HS.fileout': 'on'` in the OpenMX calculation.
+
+### Workchains
+
+* **`OpenMXWorkchain`**: A workchain that smoothly runs an OpenMX calculation, then uses its output to run another OpenMX calculation with optionally updated parameters. Useful for performing structure optimizations followed by a static SCF calculation or a band structure calculation. Can also reuse restart files (`rst_files`) between steps.
 
 ## Installation
 
 ```shell
 pip install aiida-openmx
 verdi quicksetup  # better to set up a new profile
-verdi plugin list aiida.calculations  # should now show your calclulation plugins
+verdi plugin list aiida.calculations  # should now show openmx and jx
 ```
-
 
 ## Usage
 
-Here goes a complete example of how to submit a test calculation using this plugin.
+The `aiida-openmx` plugin allows you to configure calculations using native AiiDA data types while exposing the full power of the OpenMX DFT code. The AiiDA `Dict` parameter maps directly to the OpenMX keyword specifications found in the [OpenMX user manual](http://www.openmx-square.org/openmx_man3.9/index.html).
 
-A quick demo of how to submit a calculation:
-```shell
-verdi daemon start     # make sure the daemon is running
-cd examples
-./example_01.py        # run test calculation
-verdi process list -a  # check record of calculation
+### 1. Basic SCF Calculation
+
+Here is an example of setting up a basic SCF calculation:
+
+```python
+from aiida import load_profile
+from aiida.plugins import CalculationFactory
+from aiida.orm import Dict, StructureData, Int, List, load_code
+
+load_profile()
+
+OpenMX = CalculationFactory('openmx')
+builder = OpenMX.get_builder()
+
+# Set the code
+builder.code = load_code('openmx@localhost')
+
+# Set the structure (can also be a standard python dict of a pymatgen structure)
+builder.structure = StructureData(pymatgen_structure=...)
+
+# OpenMX parameters are passed as a python dictionary (AiiDA Dict). 
+# Keys are exactly as defined in the OpenMX manual (dots in keys are supported).
+builder.parameters = Dict(dict={
+    'scf.XcType': 'GGA-PBE',
+    'scf.energycutoff': 150.0,
+    'scf.maxiter': 100,
+    'scf.criterion': '1.0e-6',
+    'scf.spinpolarization': 'on',
+})
+
+# Set precision (integer 1-3). Controls the size of the PAO basis set.
+# 1 is the smallest, 3 is the largest.
+builder.precision = Int(2)
+
+# For a spin-polarized calculation, you can set the initial spin-splitting 
+# for each atom in the structure:
+builder.spin_splits = List(list=[2.0, -2.0]) # Assuming a 2-atom structure
+
+# Submit the calculation
+from aiida.engine import submit
+submit(builder)
 ```
 
-The plugin also includes verdi commands to inspect its data types:
-```shell
-verdi data openmx list
-verdi data openmx export <PK>
+### 2. Band Structure Calculation
+
+To compute band dispersions, you can define critical points and the $k$-path directly through the `bands` namespace, rather than specifying them manually in the `parameters` dictionary:
+
+```python
+# Enable band dispersion in the OpenMX parameters
+builder.parameters = Dict(dict={
+    # ... other parameters ...
+    'Band.dispersion': 'on',
+})
+
+# Define the high-symmetry points (critical points)
+builder.bands.critical_points = Dict(dict={
+    'G': [0.0, 0.0, 0.0],
+    'H': [-0.5, 0.5, 0.5],
+    'N': [0.0, 0.5, 0.0],
+    'P': [0.25, 0.25, 0.25]
+})
+
+# Define the paths between the critical points
+builder.bands.k_path = List(list=[['G', 'H', 'N', 'G', 'P', 'H', 'N', 'P']])
+
+# Set the number of k-points along each path segment
+builder.bands.n_band = Int(15)
 ```
+
+### 3. Non-Collinear DFT Calculations
+
+OpenMX supports non-collinear DFT calculations, and the plugin provides convenient inputs for setting the constraint flags per atom. 
+
+The magnetic moments have to be provided as site_parameter called "magmom" of the pymatgen Structure. They are specified in the cartesian coordinates. This is used to generate the theta and phi angles for the OpenMX input file. The magnitude of the magnetic moments is specified through the spin_splits.
+
+```python
+builder.parameters = Dict(dict={
+    # ... other parameters ...
+    'scf.SpinPolarization': 'NC',        # Turn on Non-Collinear calculation
+    'scf.Constraint.NC.Spin': 'on',      # Apply constraints
+    'scf.Constraint.NC.Spin.v': 5.0      # Penalty parameter for the constraint
+})
+
+# Specify the initial spin moments for each atom
+builder.spin_splits = List(list=[3, 3, 3, 0, 0])
+
+# Specify which atoms should be constrained (1 = constrained, 0 = unconstrained)
+builder.non_collinear_constraint = List(list=[1, 1, 1, 0, 0])
+```
+
+## Outputs
+
+The AiiDA parsers for this plugin automatically extract useful data from the standard output and make them available as AiiDA output nodes.
+
+### OpenMX Calculation Outputs
+- **`output_file`** (`SinglefileData`): The raw standard output file from the OpenMX run.
+- **`calculation_info`** (`Dict`): Information about the calculation, including the `openmx_version` and the `aiida_openmx_plugin_version`.
+- **`properties`** (`Dict`): Parsed physical properties and convergence metrics, including:
+  - `finished_normally` (bool): Whether the calculation reached normal completion.
+  - `converged` (bool): Whether the SCF cycle converged.
+  - `Utot` (float): The final total energy.
+  - `convergence` (list): The history of the SCF convergence criterion (`dUele`).
+  - `energy_ele` (list): The electronic energy at each SCF step.
+  - `spin_moment` (float): The final total spin moment of the system.
+  - `mulliken` (dict): Mulliken population analysis, mapped by atom index (1-based). Each atom contains lists of the `sum` (total charge), `diff` (spin difference), and `euler` angles (theta, phi, for non-collinear calculations) at each SCF step.
+
+### Jx Calculation Outputs
+- **`output_file`** (`SinglefileData`): The raw standard output file from the `jx` run.
+- **`calculation_info`** (`Dict`): Contains the `aiida_openmx_plugin_version`.
+- **`Jijs`** (`Dict`): The computed exchange coupling constants. It contains:
+  - `pairs`: A list of tuples defining the interacting pairs `(i, j, Rx, Ry, Rz)`.
+  - `Js`: A list of the calculated exchange coupling constants $J$ corresponding to each pair.
 
 ## Development
 
@@ -114,16 +165,7 @@ See the [developer guide](http://aiida-openmx.readthedocs.io/en/latest/developer
 ## License
 
 MIT
+
 ## Contact
 
 vojta.parizek@gmail.com
-
-
-[ci-badge]: https://github.com/parizekv/aiida-openmx/workflows/ci/badge.svg?branch=master
-[ci-link]: https://github.com/parizekv/aiida-openmx/actions
-[cov-badge]: https://coveralls.io/repos/github/parizekv/aiida-openmx/badge.svg?branch=master
-[cov-link]: https://coveralls.io/github/parizekv/aiida-openmx?branch=master
-[docs-badge]: https://readthedocs.org/projects/aiida-openmx/badge
-[docs-link]: http://aiida-openmx.readthedocs.io/
-[pypi-badge]: https://badge.fury.io/py/aiida-openmx.svg
-[pypi-link]: https://badge.fury.io/py/aiida-openmx
